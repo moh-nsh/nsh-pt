@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>نظام متابعة المشاريع · MOH Project Tracker</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Cairo,sans-serif;background:#f0f4f8;direction:rtl;}
+input,select,textarea,button{font-family:Cairo,sans-serif;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.fade-in{animation:fadeIn 0.3s ease;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.stage-row:hover{background:#e8f4fd!important;}
+.nav-btn:hover{background:rgba(27,139,142,.2)!important;color:#fff!important;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const{useState,useEffect,useRef}=React;
+
+/* ── CONSTANTS ── */
+const ADMIN_CODE="MOH-ADMIN-2026";
+const ROLES={
+  pm:{ar:"مدير المشروع",en:"Project Manager",clr:"#0284c7"},
+  clinical:{ar:"المدير السريري",en:"Clinical Director",clr:"#16a34a"},
+  biomedical:{ar:"مهندس الهندسة الطبية",en:"Biomedical Eng.",clr:"#ea580c"},
+  it:{ar:"مسؤول تقنية المعلومات",en:"IT Officer",clr:"#7c3aed"},
+  hr:{ar:"منسق الموارد البشرية",en:"HR Coordinator",clr:"#dc2626"},
+};
+const STATUSES=[
+  {v:"not_started",ar:"لم تبدأ",en:"Not Started",clr:"#6b7280",bg:"#f3f4f6"},
+  {v:"in_progress",ar:"قيد التنفيذ",en:"In Progress",clr:"#1d4ed8",bg:"#dbeafe"},
+  {v:"completed",ar:"مكتملة",en:"Completed",clr:"#15803d",bg:"#dcfce7"},
+  {v:"delayed",ar:"متأخرة",en:"Delayed",clr:"#b91c1c",bg:"#fee2e2"},
+  {v:"on_hold",ar:"موقوفة",en:"On Hold",clr:"#b45309",bg:"#fef3c7"},
+];
+
+/* ── UTILS ── */
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6).toUpperCase();
+const getSt=v=>STATUSES.find(s=>s.v===v)||STATUSES[0];
+const fmt=n=>Number(n||0).toLocaleString("en-OM");
+const pct=(a,b)=>b>0?Math.round((Number(a)/Number(b))*100):0;
+const ls={
+  get:k=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch{return null;}},
+  set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){console.error(e);}},
+};
+
+/* ── TINY COMPONENTS ── */
+const INP={width:"100%",padding:"9px 13px",border:"1.5px solid #d1d5db",borderRadius:8,fontSize:14,background:"#fafafa",outline:"none"};
+
+function Btn({children,onClick,color="#0F2044",textColor="#fff",sm,style={},disabled}){
+  return <button onClick={onClick} disabled={disabled} style={{padding:sm?"5px 13px":"9px 20px",background:disabled?"#e2e8f0":color,color:disabled?"#94a3b8":textColor,border:"none",borderRadius:8,fontSize:sm?12:14,fontWeight:700,cursor:disabled?"not-allowed":"pointer",whiteSpace:"nowrap",...style}}>{children}</button>;
+}
+function Badge({v}){const s=getSt(v);return <span style={{background:s.bg,color:s.clr,padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>{s.ar}</span>;}
+function Bar({pct:p,color}){
+  const v=Math.min(100,Math.max(0,p||0));
+  const c=color||(v>=100?"#16a34a":v>=60?"#0284c7":"#f59e0b");
+  return <div><div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#64748b",marginBottom:3}}><span style={{fontWeight:700,color:c}}>{v}%</span><span>نسبة الإنجاز</span></div><div style={{background:"#e9ecef",borderRadius:10,height:7,overflow:"hidden"}}><div style={{width:`${v}%`,background:c,height:"100%",borderRadius:10,transition:"width .6s"}}/></div></div>;
+}
+function KPI({ar,en,val,color,sub,icon}){
+  return <div style={{background:"#fff",borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,.07)",padding:"18px 22px",borderTop:`4px solid ${color}`,flex:1,minWidth:130}}><div style={{fontSize:24,marginBottom:6}}>{icon}</div><div style={{fontSize:11,color:"#64748b",lineHeight:1.5}}>{ar}<br/><span style={{color:"#94a3b8"}}>{en}</span></div><div style={{fontSize:28,fontWeight:900,color,margin:"6px 0 2px",lineHeight:1}}>{val}</div>{sub&&<div style={{fontSize:11,color:"#94a3b8"}}>{sub}</div>}</div>;
+}
+function Modal({title,onClose,wide,children}){
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:16,direction:"rtl"}}><div className="fade-in" style={{background:"#fff",borderRadius:20,width:"100%",maxWidth:wide?760:520,maxHeight:"93vh",overflow:"auto",boxShadow:"0 24px 64px rgba(0,0,0,.25)"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"17px 24px",borderBottom:"1px solid #e2e8f0",position:"sticky",top:0,background:"#fff",zIndex:2}}><b style={{color:"#0F2044",fontSize:16}}>{title}</b><button onClick={onClose} style={{border:"none",background:"#f1f5f9",borderRadius:"50%",width:32,height:32,cursor:"pointer",fontSize:18,color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button></div><div style={{padding:"22px 24px"}}>{children}</div></div></div>;
+}
+function F({ar,en,children,half}){
+  return <div style={{marginBottom:14,width:half?"calc(50% - 8px)":"100%"}}><label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:5}}>{ar}{en&&<span style={{color:"#94a3b8",fontWeight:400}}> / {en}</span>}</label>{children}</div>;
+}
+function Sec({t}){return <div style={{marginTop:6,marginBottom:14,paddingTop:14,borderTop:"1px solid #e2e8f0",fontSize:14,fontWeight:700,color:"#0F2044"}}>{t}</div>;}
+
+/* ── LOGIN ── */
+function Login({onLogin,err}){
+  const[code,setCode]=useState("");
+  return <div style={{minHeight:"100vh",background:"linear-gradient(145deg,#0F2044 0%,#1a4a6e 50%,#1B8B8E 100%)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+    <div className="fade-in" style={{background:"#fff",borderRadius:24,padding:"44px 40px",width:"100%",maxWidth:420,boxShadow:"0 28px 72px rgba(0,0,0,.35)",textAlign:"center"}}>
+      <div style={{width:82,height:82,borderRadius:"50%",background:"linear-gradient(135deg,#0F2044,#1B8B8E)",margin:"0 auto 20px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,boxShadow:"0 8px 24px rgba(15,32,68,.3)"}}>🏥</div>
+      <div style={{fontSize:10,letterSpacing:3,color:"#94a3b8",textTransform:"uppercase",marginBottom:6}}>وزارة الصحة · Ministry of Health</div>
+      <h1 style={{fontSize:21,color:"#0F2044",margin:"0 0 4px",fontWeight:900}}>نظام متابعة المشاريع</h1>
+      <p style={{color:"#64748b",fontSize:12,margin:"0 0 28px",lineHeight:1.6}}>Project Tracking System<br/>المديرية العامة للخدمات الصحية · شمال الشرقية</p>
+      <input type="password" value={code} onChange={e=>setCode(e.target.value)} onKeyDown={e=>e.key==="Enter"&&onLogin(code)} placeholder="أدخل رمز الدخول / Enter access code" style={{...INP,textAlign:"center",letterSpacing:4,fontSize:17,marginBottom:10,padding:"13px"}} autoFocus/>
+      {err&&<div style={{color:"#dc2626",fontSize:12,marginBottom:10,background:"#fee2e2",padding:"8px 12px",borderRadius:8}}>{err}</div>}
+      <Btn onClick={()=>onLogin(code)} style={{width:"100%",padding:"13px",fontSize:16,borderRadius:12}}>دخول · Login</Btn>
+      <div style={{marginTop:20,padding:"13px 16px",background:"#f0f9ff",borderRadius:12,textAlign:"right",border:"1px solid #bae6fd"}}>
+        <div style={{fontSize:10,color:"#0369a1",fontWeight:700,marginBottom:3}}>💡 رمز المشرف الافتراضي / Default Admin Code</div>
+        <code style={{fontSize:15,color:"#0F2044",fontWeight:800,letterSpacing:2}}>MOH-ADMIN-2026</code>
+        <div style={{fontSize:10,color:"#94a3b8",marginTop:4}}>يمكن تغييره من إعدادات النظام · Can be changed in settings</div>
+      </div>
+    </div>
+  </div>;
+}
+
+/* ── PROJECT MODAL ── */
+function ProjModal({proj,onSave,onClose}){
+  const blank={id:"",name:"",location:"",startDate:"",plannedEnd:"",actualEnd:"",budget:"",spent:"",contractor:"",durationMonths:"",pm:{name:"",phone:"",email:""},clinical:{name:"",phone:"",email:""},biomedical:{name:"",phone:"",email:""},it:{name:"",phone:"",email:""},hr:{name:"",phone:"",email:""}};
+  const[d,setD]=useState(proj?{...blank,...proj}:blank);
+  const set=(k,v)=>setD(p=>({...p,[k]:v}));
+  const setC=(role,k,v)=>setD(p=>({...p,[role]:{...p[role],[k]:v}}));
+  return <Modal title={proj?"تعديل المشروع / Edit Project":"إضافة مشروع جديد / Add Project"} onClose={onClose} wide>
+    <Sec t="معلومات المشروع / Project Information"/>
+    <F ar="اسم المركز الصحي" en="Health Center Name"><input style={INP} value={d.name} onChange={e=>set("name",e.target.value)} placeholder="اسم المركز..."/></F>
+    <div style={{display:"flex",gap:16}}><F ar="الموقع (المحافظة/الولاية)" en="Location" half><input style={INP} value={d.location} onChange={e=>set("location",e.target.value)}/></F><F ar="المقاول" en="Contractor" half><input style={INP} value={d.contractor} onChange={e=>set("contractor",e.target.value)}/></F></div>
+    <div style={{display:"flex",gap:16}}><F ar="تاريخ البدء" en="Start Date" half><input type="date" style={INP} value={d.startDate} onChange={e=>set("startDate",e.target.value)}/></F><F ar="تاريخ الإنجاز المخطط" en="Planned End" half><input type="date" style={INP} value={d.plannedEnd} onChange={e=>set("plannedEnd",e.target.value)}/></F></div>
+    <div style={{display:"flex",gap:16}}><F ar="الميزانية المعتمدة (ر.ع)" en="Budget (OMR)" half><input type="number" style={INP} value={d.budget} onChange={e=>set("budget",e.target.value)}/></F><F ar="المدة (شهور)" en="Duration (months)" half><input type="number" style={INP} value={d.durationMonths} onChange={e=>set("durationMonths",e.target.value)}/></F></div>
+    <Sec t="الجهات المعنية / Stakeholders"/>
+    {Object.entries(ROLES).map(([role,rd])=>(
+      <div key={role} style={{marginBottom:10,padding:"12px 14px",background:"#f8fafc",borderRadius:10,borderRight:`3px solid ${rd.clr}`}}>
+        <div style={{fontSize:12,fontWeight:700,color:rd.clr,marginBottom:8}}>{rd.ar} / {rd.en}</div>
+        <div style={{display:"flex",gap:12}}>
+          {[["الاسم","Name","name"],["الهاتف","Phone","phone"],["البريد","Email","email"]].map(([a,e,k])=>(
+            <div key={k} style={{flex:1}}><label style={{fontSize:11,color:"#64748b",display:"block",marginBottom:3}}>{a} / {e}</label><input style={{...INP,fontSize:13}} value={(d[role]||{})[k]||""} onChange={ev=>setC(role,k,ev.target.value)}/></div>
+          ))}
+        </div>
+      </div>
+    ))}
+    <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:18}}>
+      <Btn color="#f1f5f9" textColor="#374151" onClick={onClose}>إلغاء</Btn>
+      <Btn onClick={()=>onSave({...d,id:d.id||uid()})} disabled={!d.name}>💾 حفظ المشروع / Save</Btn>
+    </div>
+  </Modal>;
+}
+
+/* ── STAGE MODAL ── */
+function StageModal({stage,projectId,onSave,onClose}){
+  const blank={id:"",projectId,name:"",startDate:"",endDate:"",actualEnd:"",status:"not_started",completionPct:0,responsibleRole:"pm",notes:""};
+  const[d,setD]=useState(stage?{...blank,...stage}:blank);
+  const set=(k,v)=>setD(p=>({...p,[k]:v}));
+  return <Modal title={stage?"تعديل مرحلة / Edit Stage":"إضافة مرحلة / Add Stage"} onClose={onClose}>
+    <F ar="اسم المرحلة" en="Stage Name"><input style={INP} value={d.name} onChange={e=>set("name",e.target.value)} placeholder="وصف المرحلة..."/></F>
+    <div style={{display:"flex",gap:12}}><F ar="تاريخ البدء" en="Start" half><input type="date" style={INP} value={d.startDate} onChange={e=>set("startDate",e.target.value)}/></F><F ar="تاريخ الانتهاء" en="End" half><input type="date" style={INP} value={d.endDate} onChange={e=>set("endDate",e.target.value)}/></F></div>
+    <div style={{display:"flex",gap:12}}><F ar="الحالة" en="Status" half><select style={INP} value={d.status} onChange={e=>set("status",e.target.value)}>{STATUSES.map(s=><option key={s.v} value={s.v}>{s.ar} / {s.en}</option>)}</select></F><F ar="نسبة الإنجاز %" en="Completion %" half><input type="number" min={0} max={100} style={INP} value={d.completionPct} onChange={e=>set("completionPct",Math.min(100,Math.max(0,+e.target.value)))}/></F></div>
+    <F ar="الجهة المسؤولة" en="Responsible Role"><select style={INP} value={d.responsibleRole} onChange={e=>set("responsibleRole",e.target.value)}>{Object.entries(ROLES).map(([k,r])=><option key={k} value={k}>{r.ar} / {r.en}</option>)}</select></F>
+    <F ar="ملاحظات" en="Notes"><textarea style={{...INP,minHeight:72,resize:"vertical"}} value={d.notes} onChange={e=>set("notes",e.target.value)}/></F>
+    <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:14}}>
+      <Btn color="#f1f5f9" textColor="#374151" onClick={onClose}>إلغاء</Btn>
+      <Btn onClick={()=>onSave({...d,id:d.id||uid()})} disabled={!d.name}>💾 حفظ / Save</Btn>
+    </div>
+  </Modal>;
+}
+
+/* ── USER MODAL ── */
+function UserModal({projects,onSave,onClose}){
+  const[d,setD]=useState({id:"",code:"",role:"pm",name:"",phone:"",projectIds:[]});
+  const set=(k,v)=>setD(p=>({...p,[k]:v}));
+  const tog=id=>set("projectIds",d.projectIds.includes(id)?d.projectIds.filter(x=>x!==id):[...d.projectIds,id]);
+  const gen=()=>{const px=d.role.slice(0,2).toUpperCase();set("code",`${px}-${Math.random().toString(36).slice(2,8).toUpperCase()}`);}
+  return <Modal title="إضافة مستخدم / Add User" onClose={onClose}>
+    <F ar="الاسم الكامل" en="Full Name"><input style={INP} value={d.name} onChange={e=>set("name",e.target.value)}/></F>
+    <div style={{display:"flex",gap:12}}><F ar="الدور" en="Role" half><select style={INP} value={d.role} onChange={e=>set("role",e.target.value)}>{Object.entries(ROLES).map(([k,r])=><option key={k} value={k}>{r.ar}</option>)}</select></F><F ar="الهاتف" en="Phone" half><input style={INP} value={d.phone} onChange={e=>set("phone",e.target.value)}/></F></div>
+    <F ar="رمز الدخول" en="Access Code"><div style={{display:"flex",gap:8}}><input style={{...INP,flex:1,letterSpacing:2,fontWeight:700}} value={d.code} onChange={e=>set("code",e.target.value.toUpperCase())} placeholder="أدخل أو اضغط توليد..."/><Btn onClick={gen} color="#0284c7">🎲 توليد</Btn></div></F>
+    <F ar="المشاريع المخصصة" en="Assigned Projects"><div style={{maxHeight:150,overflowY:"auto",border:"1.5px solid #d1d5db",borderRadius:8,padding:8}}>{projects.length===0?<div style={{fontSize:12,color:"#94a3b8",textAlign:"center",padding:12}}>لا توجد مشاريع بعد</div>:projects.map(p=><label key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 8px",cursor:"pointer",borderRadius:6,background:d.projectIds.includes(p.id)?"#dbeafe":"transparent",marginBottom:2}}><input type="checkbox" checked={d.projectIds.includes(p.id)} onChange={()=>tog(p.id)}/><span style={{fontSize:13,fontWeight:600}}>{p.name||"بدون اسم"}</span><span style={{fontSize:11,color:"#94a3b8"}}>{p.location}</span></label>)}</div></F>
+    <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}}>
+      <Btn color="#f1f5f9" textColor="#374151" onClick={onClose}>إلغاء</Btn>
+      <Btn onClick={()=>onSave({...d,id:uid()})} disabled={!d.name||!d.code}>💾 حفظ / Save</Btn>
+    </div>
+  </Modal>;
+}
+
+/* ── UPDATE STAGE MODAL ── */
+function UpdateModal({stage,project,userRole,onSave,onClose}){
+  const[d,setD]=useState({...stage});
+  const[spent,setSpent]=useState(project?.spent||"");
+  const set=(k,v)=>setD(p=>({...p,[k]:v}));
+  const st=getSt(d.status);
+  return <Modal title="تحديث المرحلة / Update Stage" onClose={onClose}>
+    <div style={{background:"#f8fafc",borderRadius:10,padding:"12px 14px",marginBottom:18,borderRight:`3px solid ${st.clr}`}}>
+      <div style={{fontSize:11,color:"#64748b"}}>المشروع</div>
+      <div style={{fontSize:16,fontWeight:800,color:"#0F2044"}}>{project?.name}</div>
+      <div style={{fontSize:12,color:"#64748b",marginTop:3}}>المرحلة: <b>{stage.name}</b></div>
+    </div>
+    <div style={{display:"flex",gap:12}}><F ar="الحالة" en="Status" half><select style={INP} value={d.status} onChange={e=>set("status",e.target.value)}>{STATUSES.map(s=><option key={s.v} value={s.v}>{s.ar} / {s.en}</option>)}</select></F><F ar="نسبة الإنجاز %" en="%" half><input type="number" min={0} max={100} style={INP} value={d.completionPct} onChange={e=>set("completionPct",Math.min(100,+e.target.value))}/></F></div>
+    <F ar="تاريخ الإنجاز الفعلي" en="Actual End"><input type="date" style={INP} value={d.actualEnd||""} onChange={e=>set("actualEnd",e.target.value)}/></F>
+    <F ar="ملاحظات" en="Notes"><textarea style={{...INP,minHeight:72,resize:"vertical"}} value={d.notes||""} onChange={e=>set("notes",e.target.value)}/></F>
+    {userRole==="pm"&&<div style={{marginTop:4,padding:"14px 16px",background:"#f0fdf4",borderRadius:10,borderRight:"3px solid #16a34a"}}>
+      <div style={{fontSize:12,fontWeight:800,color:"#15803d",marginBottom:10}}>💰 التحديث المالي (مدير المشروع فقط)</div>
+      <F ar="المصروف الفعلي (ر.ع)" en="Actual Spent"><input type="number" style={INP} value={spent} onChange={e=>setSpent(e.target.value)}/></F>
+      {project?.budget>0&&<div style={{fontSize:11,color:"#16a34a"}}>نسبة الصرف: {pct(spent,project.budget)}% من {fmt(project.budget)} ر.ع</div>}
+    </div>}
+    <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:18}}>
+      <Btn color="#f1f5f9" textColor="#374151" onClick={onClose}>إلغاء</Btn>
+      <Btn color="#16a34a" onClick={()=>onSave({...d,updatedAt:new Date().toISOString()},userRole==="pm"?{spent}:null)}>✅ حفظ التحديث</Btn>
+    </div>
+  </Modal>;
+}
+
+/* ── SIDEBAR ── */
+function Sidebar({user,view,onView,onLogout}){
+  const isAdmin=user.role==="admin";
+  const nav=isAdmin?[["dashboard","لوحة المؤشرات","📊","KPI Dashboard"],["projects","المشاريع","🏗","Projects"],["users","المستخدمون","👥","Users"]]:[["my_updates","مهامي","✏️","My Tasks"]];
+  const rd=isAdmin?{ar:"المشرف العام",en:"Administrator",clr:"#1B8B8E"}:(ROLES[user.role]||{ar:user.role,en:"",clr:"#0284c7"});
+  return <div style={{width:230,minHeight:"100vh",background:"#0F2044",color:"#fff",display:"flex",flexDirection:"column",flexShrink:0,position:"sticky",top:0,height:"100vh",overflowY:"auto"}}>
+    <div style={{padding:"26px 16px 20px",borderBottom:"1px solid rgba(255,255,255,.1)",textAlign:"center"}}>
+      <div style={{fontSize:36,marginBottom:6}}>🏥</div>
+      <div style={{fontSize:9,color:"rgba(255,255,255,.4)",letterSpacing:2,textTransform:"uppercase"}}>وزارة الصحة · Ministry of Health</div>
+      <div style={{fontSize:13,fontWeight:800,marginTop:4,lineHeight:1.3}}>نظام متابعة المشاريع</div>
+      <div style={{fontSize:10,color:"rgba(255,255,255,.35)",marginTop:2}}>Project Tracking System</div>
+    </div>
+    <div style={{padding:"14px 10px",flex:1}}>
+      {nav.map(([v,label,icon,en])=>(
+        <button key={v} className="nav-btn" onClick={()=>onView(v)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"11px 14px",marginBottom:3,background:view===v?"rgba(27,139,142,.35)":"transparent",color:view===v?"#fff":"rgba(255,255,255,.6)",border:"none",borderRadius:10,cursor:"pointer",fontSize:14,fontFamily:"Cairo,sans-serif",textAlign:"right",borderRight:view===v?"3px solid #1B8B8E":"3px solid transparent",transition:"all .2s"}}>
+          <span style={{fontSize:18}}>{icon}</span>
+          <div style={{textAlign:"right"}}><div>{label}</div><div style={{fontSize:10,color:"rgba(255,255,255,.3)",lineHeight:1}}>{en}</div></div>
+        </button>
+      ))}
+    </div>
+    <div style={{padding:"14px 12px",borderTop:"1px solid rgba(255,255,255,.1)"}}>
+      <div style={{background:"rgba(255,255,255,.08)",borderRadius:10,padding:"10px 12px",marginBottom:10}}>
+        <div style={{fontSize:13,fontWeight:700}}>{user.name||rd.ar}</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>{rd.en}</div>
+        <div style={{marginTop:6,display:"inline-block",background:`${rd.clr}40`,color:rd.clr,padding:"1px 8px",borderRadius:8,fontSize:10,fontWeight:700}}>{rd.ar}</div>
+      </div>
+      <button onClick={onLogout} style={{width:"100%",padding:"8px",background:"rgba(220,38,38,.18)",color:"#fca5a5",border:"1px solid rgba(220,38,38,.3)",borderRadius:8,cursor:"pointer",fontSize:13,fontFamily:"Cairo,sans-serif"}}>🚪 تسجيل خروج / Logout</button>
+    </div>
+  </div>;
+}
+
+/* ── DASHBOARD ── */
+function Dashboard({projects,stages}){
+  const totB=projects.reduce((a,p)=>a+Number(p.budget||0),0);
+  const totS=projects.reduce((a,p)=>a+Number(p.spent||0),0);
+  const avgC=stages.length?Math.round(stages.reduce((a,s)=>a+(s.completionPct||0),0)/stages.length):0;
+  const delayed=stages.filter(s=>s.status==="delayed").length;
+  const doneP=projects.filter(p=>{const ps=stages.filter(s=>s.projectId===p.id);return ps.length>0&&ps.every(s=>s.status==="completed");}).length;
+  return <div className="fade-in">
+    <div style={{marginBottom:24}}><h2 style={{color:"#0F2044",fontSize:22,fontWeight:900,marginBottom:4}}>لوحة المؤشرات / KPI Dashboard</h2><div style={{fontSize:13,color:"#64748b"}}>نظرة شاملة · Overall Performance</div></div>
+    <div style={{display:"flex",gap:14,flexWrap:"wrap",marginBottom:24}}>
+      <KPI ar="إجمالي المشاريع" en="Total Projects" val={projects.length} color="#0F2044" icon="🏗"/>
+      <KPI ar="متوسط الإنجاز" en="Avg. Completion" val={`${avgC}%`} color="#0284c7" icon="📈"/>
+      <KPI ar="نسبة الصرف" en="Budget Used" val={`${pct(totS,totB)}%`} color="#16a34a" icon="💰" sub={`${fmt(totS)} / ${fmt(totB)} ر.ع`}/>
+      <KPI ar="مراحل متأخرة" en="Delayed Stages" val={delayed} color="#dc2626" icon="⚠️"/>
+      <KPI ar="مشاريع مكتملة" en="Completed" val={doneP} color="#7c3aed" icon="✅"/>
+    </div>
+    <div style={{background:"#fff",borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,.07)",padding:"20px 24px"}}>
+      <h3 style={{color:"#0F2044",margin:"0 0 16px",fontSize:16,fontWeight:800}}>ملخص المشاريع / Projects Summary</h3>
+      {projects.length===0?<div style={{textAlign:"center",padding:40,color:"#94a3b8"}}><div style={{fontSize:40,marginBottom:10}}>📋</div><div>لا توجد مشاريع بعد — ابدأ بإضافة مشروع</div></div>:(
+        <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+          <thead><tr style={{background:"#f8fafc",borderBottom:"2px solid #e2e8f0"}}>{["#","المشروع","الموقع","الميزانية","المصروف","الإنجاز","الحالة"].map(h=><th key={h} style={{padding:"10px 12px",textAlign:"right",color:"#374151",fontWeight:700,fontSize:12,whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+          <tbody>{projects.map((p,i)=>{
+            const ps=stages.filter(s=>s.projectId===p.id);
+            const avgP=ps.length?Math.round(ps.reduce((a,s)=>a+(s.completionPct||0),0)/ps.length):0;
+            const hasD=ps.some(s=>s.status==="delayed");
+            const allD=ps.length>0&&ps.every(s=>s.status==="completed");
+            const inP=ps.some(s=>s.status==="in_progress");
+            const sl=allD?{l:"مكتمل",c:"#15803d",bg:"#dcfce7"}:hasD?{l:"متأخر",c:"#b91c1c",bg:"#fee2e2"}:inP?{l:"قيد التنفيذ",c:"#1d4ed8",bg:"#dbeafe"}:{l:"لم يبدأ",c:"#6b7280",bg:"#f3f4f6"};
+            return <tr key={p.id} style={{borderBottom:"1px solid #f1f5f9"}}>
+              <td style={{padding:"10px 12px",color:"#94a3b8",fontSize:12}}>{i+1}</td>
+              <td style={{padding:"10px 12px",fontWeight:700,color:"#0F2044"}}>{p.name||"-"}</td>
+              <td style={{padding:"10px 12px",color:"#64748b"}}>{p.location||"-"}</td>
+              <td style={{padding:"10px 12px",fontWeight:600}}>{fmt(p.budget)} ر.ع</td>
+              <td style={{padding:"10px 12px",color:"#16a34a",fontWeight:600}}>{fmt(p.spent)} ر.ع<br/><span style={{fontSize:10,color:"#94a3b8"}}>{pct(p.spent,p.budget)}%</span></td>
+              <td style={{padding:"10px 12px",minWidth:110}}><div style={{fontSize:11,color:"#64748b",marginBottom:3}}>{avgP}%</div><div style={{background:"#e2e8f0",borderRadius:5,height:6}}><div style={{width:`${avgP}%`,background:avgP>=100?"#16a34a":"#0284c7",height:"100%",borderRadius:5}}/></div></td>
+              <td style={{padding:"10px 12px"}}><span style={{background:sl.bg,color:sl.c,padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700}}>{sl.l}</span></td>
+            </tr>;})}
+          </tbody>
+        </table></div>
+      )}
+    </div>
+  </div>;
+}
+
+/* ── PROJECTS LIST ── */
+function ProjList({projects,stages,onAdd,onEdit,onSelect,onDel}){
+  return <div className="fade-in">
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}>
+      <div><h2 style={{color:"#0F2044",margin:0,fontSize:22,fontWeight:900}}>المشاريع / Projects</h2><div style={{fontSize:12,color:"#64748b",marginTop:2}}>{projects.length} مشروع مسجل</div></div>
+      <Btn onClick={onAdd} color="#1B8B8E">+ إضافة مشروع / Add Project</Btn>
+    </div>
+    {projects.length===0?<div style={{background:"#fff",borderRadius:14,padding:56,textAlign:"center",color:"#94a3b8"}}><div style={{fontSize:52,marginBottom:12}}>🏗</div><div style={{fontSize:16,fontWeight:700,color:"#64748b",marginBottom:6}}>لا توجد مشاريع بعد</div><div style={{fontSize:13}}>ابدأ بإضافة مشروعك الأول</div></div>:(
+      <div style={{display:"flex",flexDirection:"column",gap:14}}>
+        {projects.map(p=>{
+          const ps=stages.filter(s=>s.projectId===p.id);
+          const avgP=ps.length?Math.round(ps.reduce((a,s)=>a+(s.completionPct||0),0)/ps.length):0;
+          const hasD=ps.some(s=>s.status==="delayed");
+          return <div key={p.id} style={{background:"#fff",borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,.06)",padding:"18px 22px",cursor:"pointer",borderRight:"4px solid #1B8B8E"}} onClick={()=>onSelect(p)}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:18,fontWeight:900,color:"#0F2044",marginBottom:4}}>{p.name||"بدون اسم"}</div>
+                <div style={{fontSize:12,color:"#64748b"}}>📍 {p.location||"-"} &nbsp;·&nbsp; 🏗 {p.contractor||"-"} &nbsp;·&nbsp; ⏱ {p.durationMonths||"-"} شهر</div>
+                {hasD&&<div style={{marginTop:6,fontSize:11,color:"#b91c1c",fontWeight:700}}>⚠️ يوجد مراحل متأخرة</div>}
+              </div>
+              <div style={{textAlign:"center",background:"#f8fafc",borderRadius:10,padding:"10px 18px"}}>
+                <div style={{fontSize:11,color:"#64748b"}}>الميزانية</div>
+                <div style={{fontSize:18,fontWeight:800,color:"#0F2044"}}>{fmt(p.budget)}</div>
+                <div style={{fontSize:10,color:"#94a3b8"}}>ر.ع · صُرف: {pct(p.spent,p.budget)}%</div>
+              </div>
+            </div>
+            <div style={{marginTop:14}}><Bar pct={avgP}/></div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:12}}>
+              <div style={{fontSize:12,color:"#94a3b8"}}>{ps.length} مرحلة · اضغط للتفاصيل</div>
+              <div style={{display:"flex",gap:6}}>
+                <Btn sm color="#f1f5f9" textColor="#374151" onClick={e=>{e.stopPropagation();onEdit(p);}}>✏️ تعديل</Btn>
+                <Btn sm color="#fee2e2" textColor="#b91c1c" onClick={e=>{e.stopPropagation();onDel(p.id);}}>🗑 حذف</Btn>
+              </div>
+            </div>
+          </div>;
+        })}
+      </div>
+    )}
+  </div>;
+}
+
+/* ── PROJECT DETAIL ── */
+function ProjDetail({project,stages,onBack,onAddStage,onEditStage,onDelStage}){
+  const ps=stages.filter(s=>s.projectId===project.id);
+  const avgP=ps.length?Math.round(ps.reduce((a,s)=>a+(s.completionPct||0),0)/ps.length):0;
+  return <div className="fade-in">
+    <button onClick={onBack} style={{border:"none",background:"none",cursor:"pointer",color:"#0284c7",fontSize:14,marginBottom:18,padding:0,fontFamily:"Cairo,sans-serif",fontWeight:700}}>← رجوع للمشاريع / Back</button>
+    <div style={{background:"#fff",borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,.07)",padding:"20px 24px",marginBottom:16,borderRight:"4px solid #1B8B8E"}}>
+      <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
+        <div><h2 style={{margin:"0 0 6px",color:"#0F2044",fontSize:22,fontWeight:900}}>{project.name}</h2><div style={{fontSize:13,color:"#64748b"}}>📍 {project.location} · 🏗 {project.contractor} · ⏱ {project.durationMonths} شهر</div><div style={{fontSize:12,color:"#94a3b8",marginTop:3}}>بدء: {project.startDate||"-"} · إنجاز مخطط: {project.plannedEnd||"-"}</div></div>
+        <div style={{display:"flex",gap:20}}>
+          {[["الميزانية",fmt(project.budget)+" ر.ع","#0F2044"],["المصروف",fmt(project.spent)+" ر.ع","#16a34a"],["المتبقي",fmt(Number(project.budget||0)-Number(project.spent||0))+" ر.ع","#0284c7"],["نسبة الصرف",pct(project.spent,project.budget)+"%","#ea580c"]].map(([l,v,c])=>(
+            <div key={l} style={{textAlign:"center"}}><div style={{fontSize:11,color:"#64748b"}}>{l}</div><div style={{fontSize:17,fontWeight:800,color:c}}>{v}</div></div>
+          ))}
+        </div>
+      </div>
+      <div style={{marginTop:14}}><Bar pct={avgP}/></div>
+    </div>
+    {/* Stakeholders */}
+    <div style={{background:"#fff",borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,.07)",padding:"18px 22px",marginBottom:16}}>
+      <h3 style={{color:"#0F2044",margin:"0 0 14px",fontSize:15,fontWeight:800}}>الجهات المعنية / Stakeholders</h3>
+      <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
+        {Object.entries(ROLES).map(([role,rd])=>{const c=project[role]||{};if(!c.name)return null;return <div key={role} style={{background:"#f8fafc",borderRadius:10,padding:"10px 14px",minWidth:170,borderRight:`3px solid ${rd.clr}`,flex:1}}><div style={{fontSize:11,fontWeight:700,color:rd.clr,marginBottom:4}}>{rd.ar}</div><div style={{fontSize:14,fontWeight:700,color:"#1e293b"}}>{c.name}</div>{c.phone&&<div style={{fontSize:11,color:"#64748b",marginTop:2}}>📞 {c.phone}</div>}{c.email&&<div style={{fontSize:11,color:"#64748b"}}>✉ {c.email}</div>}</div>;})}
+      </div>
+    </div>
+    {/* Stages */}
+    <div style={{background:"#fff",borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,.07)",padding:"18px 22px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <h3 style={{color:"#0F2044",margin:0,fontSize:15,fontWeight:800}}>مراحل المشروع / Stages <span style={{fontSize:12,color:"#94a3b8",fontWeight:400}}>({ps.length})</span></h3>
+        <Btn sm color="#1B8B8E" onClick={()=>onAddStage(project.id)}>+ إضافة مرحلة</Btn>
+      </div>
+      {ps.length===0?<div style={{textAlign:"center",padding:28,color:"#94a3b8"}}>لا توجد مراحل بعد / No stages yet</div>:(
+        <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+          <thead><tr style={{background:"#f8fafc",borderBottom:"2px solid #e2e8f0"}}>{["المرحلة","البدء","الانتهاء","الحالة","الإنجاز","الجهة المسؤولة","ملاحظات","إجراءات"].map(h=><th key={h} style={{padding:"9px 10px",textAlign:"right",fontSize:12,color:"#374151",fontWeight:700,whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+          <tbody>{ps.map(s=>{const role=ROLES[s.responsibleRole]||{ar:s.responsibleRole,clr:"#666"};return <tr key={s.id} className="stage-row" style={{borderBottom:"1px solid #f1f5f9",transition:"background .15s"}}>
+            <td style={{padding:"10px",fontWeight:700,color:"#1e293b"}}>{s.name}</td>
+            <td style={{padding:"10px",color:"#64748b",whiteSpace:"nowrap"}}>{s.startDate||"-"}</td>
+            <td style={{padding:"10px",color:"#64748b",whiteSpace:"nowrap"}}>{s.endDate||"-"}{s.actualEnd&&<div style={{fontSize:10,color:"#16a34a"}}>فعلي: {s.actualEnd}</div>}</td>
+            <td style={{padding:"10px"}}><Badge v={s.status}/></td>
+            <td style={{padding:"10px",minWidth:90}}><div style={{fontSize:11,fontWeight:700,color:"#0284c7",marginBottom:2}}>{s.completionPct||0}%</div><div style={{background:"#e2e8f0",borderRadius:5,height:5}}><div style={{width:`${s.completionPct||0}%`,background:(s.completionPct||0)>=100?"#16a34a":"#0284c7",height:"100%",borderRadius:5}}/></div></td>
+            <td style={{padding:"10px"}}><span style={{background:`${role.clr}20`,color:role.clr,padding:"2px 8px",borderRadius:10,fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>{role.ar}</span></td>
+            <td style={{padding:"10px",color:"#94a3b8",fontSize:12,maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.notes||"-"}</td>
+            <td style={{padding:"10px"}}><div style={{display:"flex",gap:5}}><Btn sm color="#f1f5f9" textColor="#374151" onClick={()=>onEditStage(s)}>✏️</Btn><Btn sm color="#fee2e2" textColor="#b91c1c" onClick={()=>onDelStage(s.id)}>🗑</Btn></div></td>
+          </tr>;})}
+          </tbody>
+        </table></div>
+      )}
+    </div>
+  </div>;
+}
+
+/* ── USERS VIEW ── */
+function UsersView({users,projects,onAdd,onDel}){
+  const[copied,setCopied]=useState(null);
+  const copy=(code,id)=>{navigator.clipboard?.writeText(code);setCopied(id);setTimeout(()=>setCopied(null),1500);};
+  return <div className="fade-in">
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}>
+      <div><h2 style={{color:"#0F2044",margin:0,fontSize:22,fontWeight:900}}>إدارة المستخدمين / Users</h2><div style={{fontSize:12,color:"#64748b",marginTop:2}}>{users.length} مستخدم</div></div>
+      <Btn onClick={onAdd} color="#1B8B8E">+ إضافة مستخدم / Add User</Btn>
+    </div>
+    {users.length===0?<div style={{background:"#fff",borderRadius:14,padding:56,textAlign:"center",color:"#94a3b8"}}><div style={{fontSize:52,marginBottom:12}}>👥</div><div style={{fontSize:16,fontWeight:700,color:"#64748b",marginBottom:6}}>لا يوجد مستخدمون بعد</div><div style={{fontSize:13}}>أضف نقاط التواصل لكل مشروع</div></div>:(
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        {users.map(u=>{
+          const rd=ROLES[u.role]||{ar:u.role,en:"",clr:"#666"};
+          const aProjs=projects.filter(p=>(u.projectIds||[]).includes(p.id));
+          return <div key={u.id} style={{background:"#fff",borderRadius:14,boxShadow:"0 2px 10px rgba(0,0,0,.06)",padding:"16px 20px",borderRight:`4px solid ${rd.clr}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:17,fontWeight:800,color:"#0F2044",marginBottom:3}}>{u.name}</div>
+                <div style={{fontSize:12,color:rd.clr,fontWeight:700}}>{rd.ar} / {rd.en}</div>
+                {u.phone&&<div style={{fontSize:12,color:"#64748b",marginTop:4}}>📞 {u.phone}</div>}
+                <div style={{marginTop:8,display:"flex",flexWrap:"wrap",gap:5}}>
+                  {aProjs.length===0?<span style={{fontSize:11,color:"#94a3b8"}}>لا توجد مشاريع مخصصة</span>:aProjs.map(p=><span key={p.id} style={{background:"#dbeafe",color:"#1d4ed8",padding:"2px 10px",borderRadius:10,fontSize:11,fontWeight:600}}>{p.name}</span>)}
+                </div>
+              </div>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:11,color:"#64748b",marginBottom:4}}>رمز الدخول / Access Code</div>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <code style={{fontSize:16,fontWeight:900,color:"#0F2044",background:"#f1f5f9",padding:"7px 14px",borderRadius:8,letterSpacing:2}}>{u.code}</code>
+                  <button onClick={()=>copy(u.code,u.id)} style={{border:"none",background:copied===u.id?"#dcfce7":"#f1f5f9",borderRadius:6,padding:"6px 10px",cursor:"pointer",fontSize:14}}>{copied===u.id?"✅":"📋"}</button>
+                </div>
+                <Btn sm color="#fee2e2" textColor="#b91c1c" style={{marginTop:8,width:"100%"}} onClick={()=>onDel(u.id)}>🗑 حذف / Delete</Btn>
+              </div>
+            </div>
+          </div>;
+        })}
+      </div>
+    )}
+  </div>;
+}
+
+/* ── FOCAL POINT VIEW ── */
+function FocalView({user,projects,stages,onUpdate}){
+  const[sel,setSel]=useState(null);
+  const rd=ROLES[user.role]||{ar:user.role,en:"",clr:"#0284c7"};
+  const myP=projects.filter(p=>(user.projectIds||[]).includes(p.id));
+  const myS=stages.filter(s=>(user.projectIds||[]).includes(s.projectId)&&(user.role==="pm"||s.responsibleRole===user.role));
+  const pending=myS.filter(s=>s.status!=="completed").length;
+  const done=myS.filter(s=>s.status==="completed").length;
+  const delayed=myS.filter(s=>s.status==="delayed").length;
+  return <div className="fade-in">
+    <div style={{background:`linear-gradient(135deg,${rd.clr}12,${rd.clr}06)`,border:`1px solid ${rd.clr}30`,borderRadius:14,padding:"20px 24px",marginBottom:22,borderRight:`4px solid ${rd.clr}`}}>
+      <div style={{fontSize:28,marginBottom:8}}>👋</div>
+      <h2 style={{margin:"0 0 4px",color:"#0F2044",fontSize:20,fontWeight:900}}>مرحباً، {user.name}</h2>
+      <div style={{fontSize:13,color:rd.clr,fontWeight:700}}>{rd.ar} / {rd.en}</div>
+      <div style={{display:"flex",gap:24,marginTop:16,flexWrap:"wrap"}}>
+        {[["مشاريع مخصصة",myP.length,"#0F2044"],["مراحل معلقة",pending,"#f59e0b"],["مراحل مكتملة",done,"#16a34a"],["مراحل متأخرة",delayed,"#dc2626"]].map(([l,v,c])=>(
+          <div key={l}><span style={{fontSize:30,fontWeight:900,color:c}}>{v}</span><div style={{fontSize:11,color:"#64748b"}}>{l}</div></div>
+        ))}
+      </div>
+    </div>
+    {myP.length===0?<div style={{background:"#fff",borderRadius:14,padding:48,textAlign:"center",color:"#94a3b8"}}><div style={{fontSize:48,marginBottom:12}}>📋</div><div>لا توجد مهام مخصصة لك بعد</div></div>:
+      myP.map(project=>{
+        const pStages=myS.filter(s=>s.projectId===project.id);
+        return <div key={project.id} style={{background:"#fff",borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,.07)",padding:"18px 22px",marginBottom:14}}>
+          <div style={{marginBottom:14}}><div style={{fontSize:17,fontWeight:900,color:"#0F2044"}}>{project.name}</div><div style={{fontSize:12,color:"#64748b",marginTop:2}}>📍 {project.location} · {pStages.length} مرحلة مخصصة</div></div>
+          {pStages.length===0?<div style={{fontSize:12,color:"#94a3b8",textAlign:"center",padding:"16px 0"}}>لا توجد مراحل مخصصة لك في هذا المشروع</div>:
+            pStages.map(s=>{const st=getSt(s.status);return <div key={s.id} onClick={()=>setSel({stage:s,project})} style={{background:"#f8fafc",borderRadius:10,padding:"12px 14px",marginBottom:8,borderRight:`3px solid ${st.clr}`,cursor:"pointer"}} onMouseEnter={e=>e.currentTarget.style.background="#eef3ff"} onMouseLeave={e=>e.currentTarget.style.background="#f8fafc"}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
+                <div style={{flex:1}}><div style={{fontSize:14,fontWeight:700,color:"#1e293b",marginBottom:3}}>{s.name}</div><div style={{fontSize:11,color:"#64748b"}}>{s.startDate&&`${s.startDate}`}{s.endDate&&` → ${s.endDate}`}</div>{s.notes&&<div style={{fontSize:11,color:"#94a3b8",marginTop:3}}>💬 {s.notes}</div>}{s.updatedAt&&<div style={{fontSize:10,color:"#94a3b8",marginTop:4}}>آخر تحديث: {new Date(s.updatedAt).toLocaleDateString("ar-OM")}</div>}</div>
+                <div style={{textAlign:"center"}}><Badge v={s.status}/><div style={{fontSize:10,color:"#0284c7",marginTop:6,fontWeight:600}}>اضغط للتحديث</div></div>
+              </div>
+              <div style={{marginTop:10}}><Bar pct={s.completionPct||0} color={rd.clr}/></div>
+            </div>;})}
+        </div>;})}
+    {sel&&<UpdateModal stage={sel.stage} project={sel.project} userRole={user.role} onClose={()=>setSel(null)} onSave={(updStage,fin)=>{onUpdate(updStage,fin,sel.project.id);setSel(null);}}/>}
+  </div>;
+}
+
+/* ── MAIN APP ── */
+function App(){
+  const[user,setUser]=useState(null);
+  const[loginErr,setLoginErr]=useState("");
+  const[projects,setProjects]=useState(()=>ls.get("moh_projects")||[]);
+  const[stages,setStages]=useState(()=>ls.get("moh_stages")||[]);
+  const[users,setUsers]=useState(()=>ls.get("moh_users")||[]);
+  const[view,setView]=useState("dashboard");
+  const[selProj,setSelProj]=useState(null);
+  const[showAddP,setShowAddP]=useState(false);
+  const[editP,setEditP]=useState(null);
+  const[showAddS,setShowAddS]=useState(null);
+  const[editS,setEditS]=useState(null);
+  const[showAddU,setShowAddU]=useState(false);
+
+  const saveP=p=>{setProjects(p);ls.set("moh_projects",p);};
+  const saveS=s=>{setStages(s);ls.set("moh_stages",s);};
+  const saveU=u=>{setUsers(u);ls.set("moh_users",u);};
+
+  const login=code=>{
+    if(code.trim()===ADMIN_CODE){setUser({role:"admin",name:"المشرف العام",code});setLoginErr("");}
+    else{const f=users.find(u=>u.code===code.trim());if(f){setUser(f);setLoginErr("");}else setLoginErr("رمز الدخول غير صحيح / Invalid access code");}
+  };
+
+  const saveProject=p=>{saveP(projects.some(x=>x.id===p.id)?projects.map(x=>x.id===p.id?p:x):[...projects,p]);setShowAddP(false);setEditP(null);};
+  const delProject=id=>{if(!confirm("حذف هذا المشروع؟"))return;saveP(projects.filter(p=>p.id!==id));saveS(stages.filter(s=>s.projectId!==id));if(selProj?.id===id)setSelProj(null);};
+  const saveStage=s=>{saveS(stages.some(x=>x.id===s.id)?stages.map(x=>x.id===s.id?s:x):[...stages,s]);setShowAddS(null);setEditS(null);};
+  const delStage=id=>{if(!confirm("حذف هذه المرحلة؟"))return;saveS(stages.filter(s=>s.id!==id));};
+  const saveUser=u=>{saveU([...users,u]);setShowAddU(false);};
+  const delUser=id=>{if(!confirm("حذف هذا المستخدم؟"))return;saveU(users.filter(u=>u.id!==id));};
+  const stageUpdate=(upd,fin,pid)=>{saveS(stages.map(s=>s.id===upd.id?upd:s));if(fin&&pid)saveP(projects.map(p=>p.id===pid?{...p,...fin}:p));};
+
+  if(!user)return <Login onLogin={login} err={loginErr}/>;
+
+  const main=()=>{
+    if(user.role==="admin"){
+      if(view==="projects"&&selProj)return <ProjDetail project={selProj} stages={stages} onBack={()=>setSelProj(null)} onAddStage={setShowAddS} onEditStage={setEditS} onDelStage={delStage}/>;
+      if(view==="dashboard")return <Dashboard projects={projects} stages={stages}/>;
+      if(view==="projects")return <ProjList projects={projects} stages={stages} onAdd={()=>setShowAddP(true)} onEdit={setEditP} onSelect={setSelProj} onDel={delProject}/>;
+      if(view==="users")return <UsersView users={users} projects={projects} onAdd={()=>setShowAddU(true)} onDel={delUser}/>;
+    }
+    return <FocalView user={user} projects={projects} stages={stages} onUpdate={stageUpdate}/>;
+  };
+
+  return <div dir="rtl" style={{display:"flex",minHeight:"100vh",background:"#f0f4f8",fontFamily:"Cairo,sans-serif"}}>
+    <Sidebar user={user} view={view} onView={v=>{setView(v);setSelProj(null);}} onLogout={()=>{setUser(null);setView("dashboard");}}/>
+    <div style={{flex:1,padding:"28px 30px",overflowY:"auto",maxWidth:"calc(100% - 230px)"}}>
+      {main()}
+    </div>
+    {(showAddP||editP)&&<ProjModal proj={editP} onSave={saveProject} onClose={()=>{setShowAddP(false);setEditP(null);}}/>}
+    {(showAddS!==null||editS)&&<StageModal stage={editS} projectId={showAddS||editS?.projectId} onSave={saveStage} onClose={()=>{setShowAddS(null);setEditS(null);}}/>}
+    {showAddU&&<UserModal projects={projects} onSave={saveUser} onClose={()=>setShowAddU(false)}/>}
+  </div>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
