@@ -2,1048 +2,834 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>نظام متابعة المشاريع v2 · MOH</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>NSH · نظام متابعة المشاريع</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:Cairo,sans-serif;background:#eef2f7;direction:rtl;}
-input,select,textarea,button{font-family:Cairo,sans-serif;}
-::-webkit-scrollbar{width:5px;height:5px;}
-::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px;}
-@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
-.fade-in{animation:fadeIn 0.3s ease;}
-@keyframes spin{to{transform:rotate(360deg);}}
-.row-hover:hover{background:#f0f7ff!important;cursor:pointer;}
-.tab-btn{border:none;background:transparent;font-family:Cairo,sans-serif;cursor:pointer;padding:10px 18px;font-size:13px;font-weight:700;color:#64748b;border-bottom:3px solid transparent;transition:all .2s;}
-.tab-btn.active{color:#0F2044;border-bottom-color:#1B8B8E;}
-.tab-btn:hover{color:#0F2044;}
-.kpi-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.12)!important;}
-.task-item:hover{background:#f0f9ff!important;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Cairo,sans-serif;background:#eef2f7;direction:rtl}
+input,select,textarea,button{font-family:Cairo,sans-serif}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.fi{animation:fadeIn .3s ease}
+@keyframes spin{to{transform:rotate(360deg)}}
+.nb{border:none;background:transparent;cursor:pointer;font-family:Cairo,sans-serif}
+.rh:hover{background:#f0f7ff!important}
+.th{border:none;background:transparent;font-family:Cairo,sans-serif;cursor:pointer;padding:10px 18px;font-size:13px;font-weight:700;color:#64748b;border-bottom:3px solid transparent;transition:all .2s}
+.th.act{color:#0F2044;border-bottom-color:#1B8B8E}
 </style>
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel">
-const {useState,useEffect,useMemo}=React;
+<script>
+const {createElement:h,useState,useEffect,Fragment}=React;
 
-/* ═══════════════ CONSTANTS ═══════════════ */
-const ADMIN_CODE="MOH-ADMIN-2026";
-
+/* ── DATA ── */
+const ADMIN="MOH-ADMIN-2026";
 const ROLES={
-  pm:{ar:"مدير المشروع",en:"Project Manager",clr:"#0284c7"},
-  clinical:{ar:"المدير السريري",en:"Clinical Director",clr:"#16a34a"},
-  biomedical:{ar:"مهندس الهندسة الطبية",en:"Biomedical Eng.",clr:"#ea580c"},
-  it:{ar:"مسؤول تقنية المعلومات",en:"IT Officer",clr:"#7c3aed"},
-  hr:{ar:"منسق الموارد البشرية",en:"HR Coordinator",clr:"#dc2626"},
+  pm:{ar:"مدير المشروع",en:"Project Manager",c:"#0284c7"},
+  clinical:{ar:"المدير السريري",en:"Clinical Director",c:"#16a34a"},
+  biomedical:{ar:"مهندس الهندسة الطبية",en:"Biomedical Eng.",c:"#ea580c"},
+  it:{ar:"مسؤول تقنية المعلومات",en:"IT Officer",c:"#7c3aed"},
+  hr:{ar:"منسق الموارد البشرية",en:"HR Coordinator",c:"#dc2626"},
 };
-
-const PROJ_TYPES=[
-  {v:"construction",ar:"إنشاء / بناء",en:"Construction",icon:"🏗",clr:"#0284c7"},
-  {v:"equipment",ar:"تجهيز / معدات",en:"Equipment",icon:"⚙️",clr:"#ea580c"},
-  {v:"development",ar:"تطوير / تقني",en:"IT Development",icon:"💻",clr:"#7c3aed"},
-  {v:"maintenance",ar:"صيانة",en:"Maintenance",icon:"🔧",clr:"#16a34a"},
-  {v:"general",ar:"عام",en:"General",icon:"📋",clr:"#64748b"},
+const PTYPES=[
+  {v:"construction",ar:"إنشاء",icon:"🏗",c:"#0284c7"},
+  {v:"equipment",ar:"تجهيز",icon:"⚙️",c:"#ea580c"},
+  {v:"development",ar:"تطوير تقني",icon:"💻",c:"#7c3aed"},
+  {v:"maintenance",ar:"صيانة",icon:"🔧",c:"#16a34a"},
+  {v:"general",ar:"عام",icon:"📋",c:"#64748b"},
 ];
-
-const KPI_TEMPLATES={
-  construction:[
-    {name:"نسبة الإنجاز الإنشائي",nameEn:"Structural Completion",unit:"%",target:100,responsibleRole:"pm"},
-    {name:"حوادث السلامة",nameEn:"Safety Incidents",unit:"حادثة",target:0,responsibleRole:"pm"},
-    {name:"نسبة الجودة",nameEn:"Quality Score",unit:"%",target:90,responsibleRole:"biomedical"},
-    {name:"توريد المواد",nameEn:"Material Delivery",unit:"%",target:100,responsibleRole:"pm"},
-  ],
-  equipment:[
-    {name:"المعدات المركبة",nameEn:"Equipment Installed",unit:"%",target:100,responsibleRole:"biomedical"},
-    {name:"المعدات المختبرة",nameEn:"Equipment Tested",unit:"%",target:100,responsibleRole:"biomedical"},
-    {name:"تدريب الكوادر",nameEn:"Staff Training",unit:"%",target:100,responsibleRole:"hr"},
-    {name:"التوثيق الفني",nameEn:"Technical Docs",unit:"%",target:100,responsibleRole:"biomedical"},
-  ],
-  development:[
-    {name:"المتطلبات المنجزة",nameEn:"Requirements Done",unit:"%",target:100,responsibleRole:"it"},
-    {name:"اختبار النظام",nameEn:"System Testing",unit:"%",target:100,responsibleRole:"it"},
-    {name:"رضا المستخدمين",nameEn:"User Satisfaction",unit:"%",target:80,responsibleRole:"clinical"},
-    {name:"الأمان السيبراني",nameEn:"Cybersecurity",unit:"%",target:95,responsibleRole:"it"},
-  ],
-  maintenance:[
-    {name:"الأصول المصانة",nameEn:"Assets Maintained",unit:"%",target:100,responsibleRole:"biomedical"},
-    {name:"تقليل وقت التوقف",nameEn:"Downtime Reduction",unit:"%",target:80,responsibleRole:"biomedical"},
-    {name:"معالجة الشكاوى",nameEn:"Complaint Response",unit:"ساعة",target:24,responsibleRole:"pm"},
-  ],
-  general:[
-    {name:"نسبة الإنجاز",nameEn:"Overall Completion",unit:"%",target:100,responsibleRole:"pm"},
-    {name:"رضا المستفيدين",nameEn:"Beneficiary Satisfaction",unit:"%",target:85,responsibleRole:"clinical"},
-  ],
+const KPI_TPL={
+  construction:[{n:"نسبة الإنجاز الإنشائي",u:"%",t:100,r:"pm"},{n:"نسبة الجودة",u:"%",t:90,r:"biomedical"},{n:"توريد المواد",u:"%",t:100,r:"pm"},{n:"حوادث السلامة",u:"حادثة",t:0,r:"pm"}],
+  equipment:[{n:"المعدات المركبة",u:"%",t:100,r:"biomedical"},{n:"المعدات المختبرة",u:"%",t:100,r:"biomedical"},{n:"تدريب الكوادر",u:"%",t:100,r:"hr"}],
+  development:[{n:"المتطلبات المنجزة",u:"%",t:100,r:"it"},{n:"اختبار النظام",u:"%",t:100,r:"it"},{n:"رضا المستخدمين",u:"%",t:80,r:"clinical"}],
+  maintenance:[{n:"الأصول المصانة",u:"%",t:100,r:"biomedical"},{n:"تقليل التوقف",u:"%",t:80,r:"biomedical"}],
+  general:[{n:"نسبة الإنجاز",u:"%",t:100,r:"pm"},{n:"رضا المستفيدين",u:"%",t:85,r:"clinical"}],
 };
-
-const STATUSES=[
-  {v:"not_started",ar:"لم تبدأ",en:"Not Started",clr:"#6b7280",bg:"#f3f4f6"},
-  {v:"in_progress",ar:"قيد التنفيذ",en:"In Progress",clr:"#1d4ed8",bg:"#dbeafe"},
-  {v:"completed",ar:"مكتملة",en:"Completed",clr:"#15803d",bg:"#dcfce7"},
-  {v:"delayed",ar:"متأخرة",en:"Delayed",clr:"#b91c1c",bg:"#fee2e2"},
-  {v:"on_hold",ar:"موقوفة",en:"On Hold",clr:"#b45309",bg:"#fef3c7"},
+const STATS=[
+  {v:"not_started",ar:"لم تبدأ",c:"#6b7280",bg:"#f3f4f6"},
+  {v:"in_progress",ar:"قيد التنفيذ",c:"#1d4ed8",bg:"#dbeafe"},
+  {v:"completed",ar:"مكتملة",c:"#15803d",bg:"#dcfce7"},
+  {v:"delayed",ar:"متأخرة",c:"#b91c1c",bg:"#fee2e2"},
+  {v:"on_hold",ar:"موقوفة",c:"#b45309",bg:"#fef3c7"},
+];
+const TSTATS=[
+  {v:"pending",ar:"معلقة",c:"#6b7280",bg:"#f3f4f6"},
+  {v:"in_progress",ar:"جارية",c:"#1d4ed8",bg:"#dbeafe"},
+  {v:"done",ar:"منجزة",c:"#15803d",bg:"#dcfce7"},
 ];
 
-const TASK_STATUSES=[
-  {v:"pending",ar:"معلقة",clr:"#6b7280",bg:"#f3f4f6"},
-  {v:"in_progress",ar:"جارية",clr:"#1d4ed8",bg:"#dbeafe"},
-  {v:"done",ar:"منجزة",clr:"#15803d",bg:"#dcfce7"},
-];
-
-/* ═══════════════ UTILS ═══════════════ */
+/* ── UTILS ── */
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6).toUpperCase();
-const getSt=v=>STATUSES.find(s=>s.v===v)||STATUSES[0];
-const getTSt=v=>TASK_STATUSES.find(s=>s.v===v)||TASK_STATUSES[0];
-const getPT=v=>PROJ_TYPES.find(t=>t.v===v)||PROJ_TYPES[4];
+const gst=v=>STATS.find(s=>s.v===v)||STATS[0];
+const gtst=v=>TSTATS.find(s=>s.v===v)||TSTATS[0];
+const gpt=v=>PTYPES.find(t=>t.v===v)||PTYPES[4];
 const fmt=n=>Number(n||0).toLocaleString("en-OM");
-const pct=(a,b)=>b>0?Math.min(100,Math.round((Number(a)/Number(b))*100)):0;
-const isOverdue=d=>d&&new Date(d)<new Date();
-
+const pct=(a,b)=>b>0?Math.min(100,Math.round(Number(a)/Number(b)*100)):0;
+const overdue=d=>d&&new Date(d)<new Date();
 const ls={
-  get:k=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch{return null;}},
-  set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){console.error(e);}},
+  get:k=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):null}catch{return null}},
+  set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 };
-
-function getAlerts(project,stages){
-  const alerts=[];
-  if(!project)return alerts;
-  if(project.budget>0&&Number(project.spent||0)/Number(project.budget)>0.9)
-    alerts.push({type:"budget",sev:"warning",msg:"نسبة الصرف تجاوزت 90% من الميزانية",icon:"💰"});
-  if(project.plannedEnd&&isOverdue(project.plannedEnd)&&!project.actualEnd)
-    alerts.push({type:"timeline",sev:"danger",msg:"تجاوز المشروع تاريخ الإنجاز المخطط",icon:"📅"});
+function getAlerts(p,stages){
+  const a=[];
+  if(!p)return a;
+  if(p.budget>0&&Number(p.spent||0)/Number(p.budget)>.9)a.push({sev:"w",msg:"نسبة الصرف تجاوزت 90%",icon:"💰"});
+  if(p.plannedEnd&&overdue(p.plannedEnd)&&!p.actualEnd)a.push({sev:"d",msg:"تجاوز تاريخ الإنجاز المخطط",icon:"📅"});
   stages.forEach(s=>{
-    if(s.endDate&&isOverdue(s.endDate)&&s.status!=="completed")
-      alerts.push({type:"stage",sev:"danger",msg:`المرحلة "${s.name}" متأخرة عن موعدها`,icon:"⚠️",ref:s.id});
-    (s.tasks||[]).forEach(t=>{
-      if(t.dueDate&&isOverdue(t.dueDate)&&t.status!=="done")
-        alerts.push({type:"task",sev:"danger",msg:`المهمة "${t.title}" متأخرة`,icon:"📌",ref:s.id});
-    });
+    if(s.endDate&&overdue(s.endDate)&&s.status!=="completed")a.push({sev:"d",msg:"المرحلة "+s.name+" متأخرة",icon:"⚠️"});
+    (s.tasks||[]).forEach(t=>{if(t.dueDate&&overdue(t.dueDate)&&t.status!=="done")a.push({sev:"d",msg:"المهمة "+t.title+" متأخرة",icon:"📌"});});
   });
-  (project.kpis||[]).forEach(k=>{
-    if(k.target>0&&k.unit==="%"&&Number(k.actual||0)<Number(k.target)*0.5)
-      alerts.push({type:"kpi",sev:"warning",msg:`المؤشر "${k.name}" أقل من 50% من الهدف`,icon:"📊"});
-  });
-  return alerts;
+  return a;
 }
 
-/* ═══════════════ BASE UI ═══════════════ */
+/* ── MINI COMPONENTS ── */
+const S=(k,v)=>({[k]:v});
 const INP={width:"100%",padding:"9px 13px",border:"1.5px solid #d1d5db",borderRadius:8,fontSize:14,background:"#fafafa",outline:"none"};
 
-function Btn({children,onClick,color="#0F2044",tc="#fff",sm,style={},disabled}){
-  return <button onClick={onClick} disabled={disabled} style={{padding:sm?"5px 12px":"9px 20px",background:disabled?"#e2e8f0":color,color:disabled?"#94a3b8":tc,border:"none",borderRadius:8,fontSize:sm?12:14,fontWeight:700,cursor:disabled?"not-allowed":"pointer",whiteSpace:"nowrap",transition:"opacity .2s",...style}}>{children}</button>;
+function Btn({ch,onClick,clr="#0F2044",tc="#fff",sm,style,disabled}){
+  return h("button",{onClick,disabled,style:{padding:sm?"5px 12px":"9px 20px",background:disabled?"#e2e8f0":clr,color:disabled?"#94a3b8":tc,border:"none",borderRadius:8,fontSize:sm?12:14,fontWeight:700,cursor:disabled?"not-allowed":"pointer",whiteSpace:"nowrap",...(style||{})}},ch);
 }
-
-function Badge({v}){const s=getSt(v);return <span style={{background:s.bg,color:s.clr,padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>{s.ar}</span>;}
-function TBadge({v}){const s=getTSt(v);return <span style={{background:s.bg,color:s.clr,padding:"2px 9px",borderRadius:20,fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>{s.ar}</span>;}
-
-function Bar({p:pv,color,h=7}){
+function Badge({v}){const s=gst(v);return h("span",{style:{background:s.bg,color:s.c,padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,whiteSpace:"nowrap"}},s.ar);}
+function TBadge({v}){const s=gtst(v);return h("span",{style:{background:s.bg,color:s.c,padding:"2px 9px",borderRadius:20,fontSize:11,fontWeight:700}},s.ar);}
+function Bar({p:pv,clr,h:ht=7}){
   const v=Math.min(100,Math.max(0,pv||0));
-  const c=color||(v>=100?"#16a34a":v>=60?"#0284c7":"#f59e0b");
-  return <div style={{background:"#e2e8f0",borderRadius:10,height:h,overflow:"hidden"}}>
-    <div style={{width:`${v}%`,background:c,height:"100%",borderRadius:10,transition:"width .6s ease"}}/>
-  </div>;
+  const c=clr||(v>=100?"#16a34a":v>=60?"#0284c7":"#f59e0b");
+  return h("div",{style:{background:"#e2e8f0",borderRadius:10,height:ht,overflow:"hidden"}},
+    h("div",{style:{width:v+"%",background:c,height:"100%",borderRadius:10,transition:"width .6s"}}));
 }
-
-function Ring({pct:p,size=72,color="#0284c7",label}){
-  const r=28,circ=2*Math.PI*r,v=Math.min(100,Math.max(0,p||0));
-  const stroke=circ-(v/100)*circ;
-  return <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-    <svg width={size} height={size} viewBox="0 0 64 64" style={{transform:"rotate(-90deg)"}}>
-      <circle cx="32" cy="32" r={r} fill="none" stroke="#e2e8f0" strokeWidth="6"/>
-      <circle cx="32" cy="32" r={r} fill="none" stroke={color} strokeWidth="6"
-        strokeDasharray={circ} strokeDashoffset={stroke} strokeLinecap="round"
-        style={{transition:"stroke-dashoffset .8s ease"}}/>
-      <text x="32" y="36" textAnchor="middle" style={{fontSize:13,fontWeight:900,fill:color,transform:"rotate(90deg) translate(0,-64px)",fontFamily:"Cairo,sans-serif"}}>{v}%</text>
-    </svg>
-    {label&&<div style={{fontSize:11,color:"#64748b",textAlign:"center",maxWidth:80,lineHeight:1.3}}>{label}</div>}
-  </div>;
+function Ring({p:pv,sz=72,clr="#0284c7"}){
+  const r=28,circ=2*Math.PI*r,v=Math.min(100,Math.max(0,pv||0));
+  return h("svg",{width:sz,height:sz,viewBox:"0 0 64 64",style:{transform:"rotate(-90deg)"}},
+    h("circle",{cx:32,cy:32,r,fill:"none",stroke:"#e2e8f0",strokeWidth:6}),
+    h("circle",{cx:32,cy:32,r,fill:"none",stroke:clr,strokeWidth:6,strokeDasharray:circ,strokeDashoffset:circ-(v/100)*circ,strokeLinecap:"round",style:{transition:"stroke-dashoffset .8s"}}),
+    h("text",{x:32,y:36,textAnchor:"middle",style:{fontSize:13,fontWeight:900,fill:clr,transform:"rotate(90deg) translate(0,-64px)",fontFamily:"Cairo,sans-serif"}},v+"%")
+  );
 }
-
-function Modal({title,onClose,wide,xl,children}){
-  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:16,direction:"rtl"}} onClick={e=>e.target===e.currentTarget&&onClose()}>
-    <div className="fade-in" style={{background:"#fff",borderRadius:20,width:"100%",maxWidth:xl?920:wide?720:520,maxHeight:"94vh",overflow:"auto",boxShadow:"0 24px 64px rgba(0,0,0,.25)"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 24px",borderBottom:"1px solid #e2e8f0",position:"sticky",top:0,background:"#fff",zIndex:2}}>
-        <b style={{color:"#0F2044",fontSize:16}}>{title}</b>
-        <button onClick={onClose} style={{border:"none",background:"#f1f5f9",borderRadius:"50%",width:32,height:32,cursor:"pointer",fontSize:18,color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
-      </div>
-      <div style={{padding:"22px 24px"}}>{children}</div>
-    </div>
-  </div>;
+function Modal({title,onClose,wide,children}){
+  return h("div",{style:{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:16,direction:"rtl"},onClick:e=>e.target===e.currentTarget&&onClose()},
+    h("div",{className:"fi",style:{background:"#fff",borderRadius:20,width:"100%",maxWidth:wide?760:520,maxHeight:"94vh",overflow:"auto",boxShadow:"0 24px 64px rgba(0,0,0,.25)"}},
+      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 24px",borderBottom:"1px solid #e2e8f0",position:"sticky",top:0,background:"#fff",zIndex:2}},
+        h("b",{style:{color:"#0F2044",fontSize:16}},title),
+        h("button",{onClick:onClose,style:{border:"none",background:"#f1f5f9",borderRadius:"50%",width:32,height:32,cursor:"pointer",fontSize:18,color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Cairo,sans-serif"}},"×")
+      ),
+      h("div",{style:{padding:"22px 24px"}},children)
+    )
+  );
 }
-
-function F({ar,en,children,half,third}){
-  const w=half?"calc(50% - 8px)":third?"calc(33% - 8px)":"100%";
-  return <div style={{marginBottom:13,width:w}}>
-    <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:4}}>{ar}{en&&<span style={{color:"#94a3b8",fontWeight:400}}> / {en}</span>}</label>
-    {children}
-  </div>;
+function F({ar,ch,half}){
+  return h("div",{style:{marginBottom:13,width:half?"calc(50% - 8px)":"100%"}},
+    h("label",{style:{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:4}},ar),
+    ch
+  );
 }
-function Sec({t,sub}){return <div style={{marginTop:8,marginBottom:14,paddingTop:14,borderTop:"1px solid #e2e8f0"}}><div style={{fontSize:14,fontWeight:800,color:"#0F2044"}}>{t}</div>{sub&&<div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>{sub}</div>}</div>;}
-function Card({children,style={}}){return <div style={{background:"#fff",borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,.07)",padding:"18px 22px",...style}}>{children}</div>;}
+function Sec({t}){return h("div",{style:{marginTop:8,marginBottom:14,paddingTop:14,borderTop:"1px solid #e2e8f0",fontSize:14,fontWeight:800,color:"#0F2044"}},t);}
+function Card({ch,style}){return h("div",{style:{background:"#fff",borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,.07)",padding:"18px 22px",...(style||{})}},ch);}
+function Tab({label,active,onClick}){return h("button",{className:"th"+(active?" act":""),onClick},label);}
 
-/* ═══════════════ ALERT PANEL ═══════════════ */
-function AlertPanel({alerts}){
-  if(!alerts.length)return <div style={{textAlign:"center",padding:"28px 0",color:"#94a3b8"}}><div style={{fontSize:36,marginBottom:8}}>✅</div><div style={{fontWeight:700}}>لا توجد تنبيهات / No alerts</div></div>;
-  return <div style={{display:"flex",flexDirection:"column",gap:8}}>
-    {alerts.map((a,i)=>(
-      <div key={i} style={{display:"flex",alignItems:"flex-start",gap:12,padding:"11px 14px",borderRadius:10,background:a.sev==="danger"?"#fff5f5":"#fffbeb",borderRight:`3px solid ${a.sev==="danger"?"#dc2626":"#f59e0b"}`}}>
-        <span style={{fontSize:20}}>{a.icon}</span>
-        <div>
-          <div style={{fontSize:13,fontWeight:700,color:a.sev==="danger"?"#b91c1c":"#92400e"}}>{a.msg}</div>
-          <div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>{a.type==="stage"?"مرحلة":a.type==="task"?"مهمة":a.type==="budget"?"ميزانية":a.type==="kpi"?"مؤشر أداء":"جدول زمني"}</div>
-        </div>
-      </div>
-    ))}
-  </div>;
-}
-
-/* ═══════════════ KPI COMPONENTS ═══════════════ */
+/* ── KPI GAUGE ── */
 function KPIGauge({kpi}){
-  const isPercent=kpi.unit==="%";
-  const isLower=kpi.target===0||kpi.name.includes("حوادث")||kpi.name.includes("توقف")||kpi.name.includes("شكاوى");
-  const actual=Number(kpi.actual||0);
-  const target=Number(kpi.target||1);
-  let score=isLower?(actual===0?100:Math.max(0,Math.round((1-actual/Math.max(target,actual))*100))):pct(actual,target);
-  const color=score>=80?"#16a34a":score>=50?"#f59e0b":"#dc2626";
-  return <div className="kpi-card" style={{background:"#fff",borderRadius:14,padding:"16px 18px",boxShadow:"0 2px 12px rgba(0,0,0,.07)",transition:"transform .2s,box-shadow .2s",textAlign:"center"}}>
-    <div style={{fontSize:12,fontWeight:700,color:ROLES[kpi.responsibleRole]?.clr||"#64748b",marginBottom:2}}>{ROLES[kpi.responsibleRole]?.ar||kpi.responsibleRole}</div>
-    <div style={{fontSize:13,fontWeight:800,color:"#0F2044",marginBottom:10,lineHeight:1.3}}>{kpi.name}</div>
-    <Ring pct={score} color={color} size={80}/>
-    <div style={{marginTop:10,display:"flex",justifyContent:"center",gap:20}}>
-      <div><div style={{fontSize:10,color:"#94a3b8"}}>الفعلي</div><div style={{fontSize:16,fontWeight:900,color}}>{actual} {kpi.unit}</div></div>
-      <div><div style={{fontSize:10,color:"#94a3b8"}}>الهدف</div><div style={{fontSize:16,fontWeight:900,color:"#64748b"}}>{target} {kpi.unit}</div></div>
-    </div>
-    {kpi.notes&&<div style={{fontSize:11,color:"#94a3b8",marginTop:8,fontStyle:"italic"}}>{kpi.notes}</div>}
-  </div>;
+  const actual=Number(kpi.actual||0),target=Number(kpi.target||1);
+  const score=pct(actual,target);
+  const c=score>=80?"#16a34a":score>=50?"#f59e0b":"#dc2626";
+  const rd=ROLES[kpi.r||kpi.responsibleRole]||{ar:"غير محدد",c:"#64748b"};
+  return h("div",{style:{background:"#fff",borderRadius:14,padding:"14px 16px",boxShadow:"0 2px 12px rgba(0,0,0,.07)",textAlign:"center"}},
+    h("div",{style:{fontSize:11,fontWeight:700,color:rd.c,marginBottom:4}},rd.ar),
+    h("div",{style:{fontSize:13,fontWeight:800,color:"#0F2044",marginBottom:10,lineHeight:1.3}},kpi.name||kpi.n),
+    h(Ring,{p:score,sz:80,clr:c}),
+    h("div",{style:{marginTop:10,display:"flex",justifyContent:"center",gap:20}},
+      h("div",null,h("div",{style:{fontSize:10,color:"#94a3b8"}},"الفعلي"),h("div",{style:{fontSize:16,fontWeight:900,color:c}},actual+" "+(kpi.unit||kpi.u||""))),
+      h("div",null,h("div",{style:{fontSize:10,color:"#94a3b8"}},"الهدف"),h("div",{style:{fontSize:16,fontWeight:900,color:"#64748b"}},target+" "+(kpi.unit||kpi.u||"")))
+    )
+  );
 }
 
-function KPIForm({kpis,onChange,projectType}){
-  const templates=KPI_TEMPLATES[projectType]||KPI_TEMPLATES.general;
-  const addFromTemplate=t=>{
-    if(kpis.some(k=>k.name===t.name))return;
-    onChange([...kpis,{...t,id:uid(),actual:0,notes:""}]);
-  };
-  const addBlank=()=>onChange([...kpis,{id:uid(),name:"",nameEn:"",unit:"%",target:100,actual:0,responsibleRole:"pm",notes:""}]);
-  const upd=(id,k,v)=>onChange(kpis.map(x=>x.id===id?{...x,[k]:v}:x));
-  const del=id=>onChange(kpis.filter(x=>x.id!==id));
-  return <div>
-    <div style={{marginBottom:12}}>
-      <div style={{fontSize:12,fontWeight:700,color:"#374151",marginBottom:8}}>📌 اقتراحات حسب نوع المشروع / Suggested KPIs:</div>
-      <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-        {templates.map(t=>{
-          const added=kpis.some(k=>k.name===t.name);
-          return <button key={t.name} onClick={()=>addFromTemplate(t)} disabled={added} style={{padding:"4px 12px",borderRadius:20,fontSize:11,fontWeight:700,border:`1.5px solid ${added?"#d1d5db":"#1B8B8E"}`,background:added?"#f1f5f9":"#f0fdfa",color:added?"#94a3b8":"#0f766e",cursor:added?"default":"pointer"}}>{added?"✅ ":""}{t.name}</button>;
-        })}
-      </div>
-    </div>
-    {kpis.map((k,i)=>(
-      <div key={k.id} style={{background:"#f8fafc",borderRadius:10,padding:"12px 14px",marginBottom:8,border:"1px solid #e2e8f0"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-          <span style={{fontSize:12,fontWeight:700,color:"#0F2044"}}>مؤشر {i+1}</span>
-          <Btn sm color="#fee2e2" tc="#b91c1c" onClick={()=>del(k.id)}>× حذف</Btn>
-        </div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
-          <div style={{flex:"1 1 180px"}}><label style={{fontSize:11,color:"#64748b",display:"block",marginBottom:3}}>اسم المؤشر *</label><input style={{...INP,fontSize:13}} value={k.name} onChange={e=>upd(k.id,"name",e.target.value)} placeholder="مثال: نسبة الإنجاز"/></div>
-          <div style={{flex:"1 1 80px"}}><label style={{fontSize:11,color:"#64748b",display:"block",marginBottom:3}}>الوحدة</label><input style={{...INP,fontSize:13}} value={k.unit} onChange={e=>upd(k.id,"unit",e.target.value)} placeholder="%"/></div>
-          <div style={{flex:"1 1 80px"}}><label style={{fontSize:11,color:"#64748b",display:"block",marginBottom:3}}>الهدف</label><input type="number" style={{...INP,fontSize:13}} value={k.target} onChange={e=>upd(k.id,"target",e.target.value)}/></div>
-          <div style={{flex:"1 1 160px"}}><label style={{fontSize:11,color:"#64748b",display:"block",marginBottom:3}}>الجهة المسؤولة</label><select style={{...INP,fontSize:13}} value={k.responsibleRole} onChange={e=>upd(k.id,"responsibleRole",e.target.value)}>{Object.entries(ROLES).map(([v,r])=><option key={v} value={v}>{r.ar}</option>)}</select></div>
-        </div>
-      </div>
-    ))}
-    <Btn color="#1B8B8E" onClick={addBlank} style={{marginTop:4}}>+ إضافة مؤشر مخصص</Btn>
-  </div>;
-}
-
-/* ═══════════════ TASK COMPONENTS ═══════════════ */
-function TaskForm({tasks,onChange,users}){
-  const add=()=>onChange([...tasks,{id:uid(),title:"",assignedRole:"pm",assignedUserId:"",status:"pending",dueDate:"",notes:"",priority:"normal"}]);
-  const upd=(id,k,v)=>onChange(tasks.map(x=>x.id===id?{...x,[k]:v}:x));
-  const del=id=>onChange(tasks.filter(x=>x.id!==id));
-  return <div>
-    {tasks.length===0?<div style={{textAlign:"center",padding:"14px 0",color:"#94a3b8",fontSize:12}}>لا توجد مهام فرعية بعد — اضغط إضافة</div>:
-    tasks.map((t,i)=>(
-      <div key={t.id} style={{background:"#f8fafc",borderRadius:10,padding:"11px 13px",marginBottom:7,border:"1px solid #e2e8f0"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}}>
-          <span style={{fontSize:11,fontWeight:700,color:"#0F2044"}}>مهمة {i+1}</span>
-          <Btn sm color="#fee2e2" tc="#b91c1c" onClick={()=>del(t.id)}>× حذف</Btn>
-        </div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-          <div style={{flex:"1 1 200px"}}><label style={{fontSize:11,color:"#64748b",display:"block",marginBottom:3}}>عنوان المهمة *</label><input style={{...INP,fontSize:13}} value={t.title} onChange={e=>upd(t.id,"title",e.target.value)} placeholder="وصف المهمة..."/></div>
-          <div style={{flex:"1 1 140px"}}><label style={{fontSize:11,color:"#64748b",display:"block",marginBottom:3}}>المسؤول</label><select style={{...INP,fontSize:13}} value={t.assignedRole} onChange={e=>upd(t.id,"assignedRole",e.target.value)}>{Object.entries(ROLES).map(([v,r])=><option key={v} value={v}>{r.ar}</option>)}</select></div>
-          <div style={{flex:"1 1 120px"}}><label style={{fontSize:11,color:"#64748b",display:"block",marginBottom:3}}>تاريخ الاستحقاق</label><input type="date" style={{...INP,fontSize:13}} value={t.dueDate||""} onChange={e=>upd(t.id,"dueDate",e.target.value)}/></div>
-          <div style={{flex:"1 1 100px"}}><label style={{fontSize:11,color:"#64748b",display:"block",marginBottom:3}}>الأولوية</label><select style={{...INP,fontSize:13}} value={t.priority||"normal"} onChange={e=>upd(t.id,"priority",e.target.value)}><option value="high">عالية 🔴</option><option value="normal">عادية 🟡</option><option value="low">منخفضة 🟢</option></select></div>
-        </div>
-        <div style={{marginTop:7}}><label style={{fontSize:11,color:"#64748b",display:"block",marginBottom:3}}>ملاحظات</label><input style={{...INP,fontSize:13}} value={t.notes||""} onChange={e=>upd(t.id,"notes",e.target.value)} placeholder="تفاصيل إضافية..."/></div>
-      </div>
-    ))}
-    <Btn color="#1B8B8E" onClick={add} style={{marginTop:4}}>+ إضافة مهمة فرعية</Btn>
-  </div>;
-}
-
-/* ═══════════════ LOGIN ═══════════════ */
+/* ── LOGIN ── */
 function Login({onLogin,err}){
   const[code,setCode]=useState("");
-  return <div style={{minHeight:"100vh",background:"linear-gradient(145deg,#0F2044 0%,#1a4a6e 50%,#1B8B8E 100%)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-    <div className="fade-in" style={{background:"#fff",borderRadius:24,padding:"44px 40px",width:"100%",maxWidth:420,boxShadow:"0 28px 72px rgba(0,0,0,.35)",textAlign:"center"}}>
-      <div style={{width:84,height:84,borderRadius:"50%",background:"linear-gradient(135deg,#0F2044,#1B8B8E)",margin:"0 auto 20px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:38,boxShadow:"0 8px 24px rgba(15,32,68,.3)"}}>🏥</div>
-      <div style={{fontSize:10,letterSpacing:3,color:"#94a3b8",textTransform:"uppercase",marginBottom:6}}>وزارة الصحة · Ministry of Health</div>
-      <h1 style={{fontSize:22,color:"#0F2044",margin:"0 0 4px",fontWeight:900}}>نظام متابعة المشاريع</h1>
-      <p style={{color:"#64748b",fontSize:12,margin:"0 0 28px",lineHeight:1.6}}>Project Tracking System v2<br/>المديرية العامة للخدمات الصحية · شمال الشرقية</p>
-      <input type="password" value={code} onChange={e=>setCode(e.target.value)} onKeyDown={e=>e.key==="Enter"&&onLogin(code)} placeholder="أدخل رمز الدخول / Enter access code" style={{...INP,textAlign:"center",letterSpacing:4,fontSize:17,marginBottom:10,padding:"13px"}} autoFocus/>
-      {err&&<div style={{color:"#dc2626",fontSize:12,marginBottom:10,background:"#fee2e2",padding:"8px 12px",borderRadius:8}}>{err}</div>}
-      <Btn onClick={()=>onLogin(code)} style={{width:"100%",padding:"13px",fontSize:16,borderRadius:12}}>دخول · Login</Btn>
-      <div style={{marginTop:20,padding:"12px 16px",background:"#f0f9ff",borderRadius:12,textAlign:"right",border:"1px solid #bae6fd"}}>
-        <div style={{fontSize:10,color:"#0369a1",fontWeight:700,marginBottom:3}}>💡 رمز المشرف الافتراضي / Default Admin</div>
-        <code style={{fontSize:15,color:"#0F2044",fontWeight:800,letterSpacing:2}}>MOH-ADMIN-2026</code>
-      </div>
-    </div>
-  </div>;
+  return h("div",{style:{minHeight:"100vh",background:"linear-gradient(145deg,#0F2044 0%,#1a4a6e 50%,#1B8B8E 100%)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}},
+    h("div",{className:"fi",style:{background:"#fff",borderRadius:24,padding:"44px 40px",width:"100%",maxWidth:420,boxShadow:"0 28px 72px rgba(0,0,0,.35)",textAlign:"center"}},
+      h("div",{style:{width:84,height:84,borderRadius:"50%",background:"linear-gradient(135deg,#0F2044,#1B8B8E)",margin:"0 auto 20px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:38,boxShadow:"0 8px 24px rgba(15,32,68,.3)"}},"🏥"),
+      h("div",{style:{fontSize:10,letterSpacing:3,color:"#94a3b8",textTransform:"uppercase",marginBottom:6}},"وزارة الصحة · Ministry of Health"),
+      h("h1",{style:{fontSize:22,color:"#0F2044",margin:"0 0 4px",fontWeight:900}},"نظام متابعة المشاريع"),
+      h("p",{style:{color:"#64748b",fontSize:12,margin:"0 0 28px",lineHeight:1.6}},"Project Tracking System v2",h("br"),"المديرية العامة للخدمات الصحية · شمال الشرقية"),
+      h("input",{type:"password",value:code,onChange:e=>setCode(e.target.value),onKeyDown:e=>e.key==="Enter"&&onLogin(code),placeholder:"أدخل رمز الدخول / Enter access code",style:{...INP,textAlign:"center",letterSpacing:4,fontSize:17,marginBottom:10,padding:13},autoFocus:true}),
+      err&&h("div",{style:{color:"#dc2626",fontSize:12,marginBottom:10,background:"#fee2e2",padding:"8px 12px",borderRadius:8}},err),
+      h(Btn,{ch:"دخول · Login",onClick:()=>onLogin(code),style:{width:"100%",padding:13,fontSize:16,borderRadius:12}}),
+      h("div",{style:{marginTop:20,padding:"12px 16px",background:"#f0f9ff",borderRadius:12,textAlign:"right",border:"1px solid #bae6fd"}},
+        h("div",{style:{fontSize:10,color:"#0369a1",fontWeight:700,marginBottom:3}},"💡 رمز المشرف الافتراضي"),
+        h("code",{style:{fontSize:15,color:"#0F2044",fontWeight:800,letterSpacing:2}},ADMIN)
+      )
+    )
+  );
 }
 
-/* ═══════════════ SIDEBAR ═══════════════ */
+/* ── SIDEBAR ── */
 function Sidebar({user,view,onView,onLogout}){
   const isAdmin=user.role==="admin";
-  const nav=isAdmin?[["dashboard","لوحة المؤشرات","📊","KPI Dashboard"],["projects","المشاريع","🏗","Projects"],["users","المستخدمون","👥","Users"]]:[["my_updates","مهامي","✏️","My Tasks"]];
-  const rd=isAdmin?{ar:"المشرف العام",en:"Administrator",clr:"#1B8B8E"}:(ROLES[user.role]||{ar:user.role,en:"",clr:"#0284c7"});
-  return <div style={{width:230,minHeight:"100vh",background:"#0F2044",color:"#fff",display:"flex",flexDirection:"column",flexShrink:0,position:"sticky",top:0,height:"100vh",overflowY:"auto"}}>
-    <div style={{padding:"24px 16px 18px",borderBottom:"1px solid rgba(255,255,255,.1)",textAlign:"center"}}>
-      <div style={{fontSize:36,marginBottom:6}}>🏥</div>
-      <div style={{fontSize:9,color:"rgba(255,255,255,.4)",letterSpacing:2,textTransform:"uppercase"}}>وزارة الصحة · MOH</div>
-      <div style={{fontSize:13,fontWeight:800,marginTop:4,lineHeight:1.3}}>نظام متابعة المشاريع</div>
-      <div style={{fontSize:9,color:"rgba(255,255,255,.3)",marginTop:1}}>Project Tracking v2</div>
-    </div>
-    <div style={{padding:"14px 10px",flex:1}}>
-      {nav.map(([v,label,icon,en])=>(
-        <button key={v} onClick={()=>onView(v)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"11px 14px",marginBottom:3,background:view===v?"rgba(27,139,142,.35)":"transparent",color:view===v?"#fff":"rgba(255,255,255,.6)",border:"none",borderRadius:10,cursor:"pointer",fontSize:14,fontFamily:"Cairo,sans-serif",textAlign:"right",borderRight:view===v?"3px solid #1B8B8E":"3px solid transparent",transition:"all .2s"}}>
-          <span style={{fontSize:18}}>{icon}</span>
-          <div style={{textAlign:"right"}}><div>{label}</div><div style={{fontSize:10,color:"rgba(255,255,255,.3)",lineHeight:1}}>{en}</div></div>
-        </button>
-      ))}
-    </div>
-    <div style={{padding:"14px 12px",borderTop:"1px solid rgba(255,255,255,.1)"}}>
-      <div style={{background:"rgba(255,255,255,.08)",borderRadius:10,padding:"10px 12px",marginBottom:10}}>
-        <div style={{fontSize:13,fontWeight:700}}>{user.name||rd.ar}</div>
-        <div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:2}}>{rd.en}</div>
-        <div style={{marginTop:5,display:"inline-block",background:`${rd.clr}40`,color:rd.clr,padding:"1px 8px",borderRadius:8,fontSize:10,fontWeight:700}}>{rd.ar}</div>
-      </div>
-      <button onClick={onLogout} style={{width:"100%",padding:"8px",background:"rgba(220,38,38,.18)",color:"#fca5a5",border:"1px solid rgba(220,38,38,.3)",borderRadius:8,cursor:"pointer",fontSize:13,fontFamily:"Cairo,sans-serif"}}>🚪 تسجيل خروج</button>
-    </div>
-  </div>;
+  const nav=isAdmin?[["dashboard","لوحة المؤشرات","📊"],["projects","المشاريع","🏗"],["users","المستخدمون","👥"]]:[["my","مهامي","✏️"]];
+  const rd=isAdmin?{ar:"المشرف العام",c:"#1B8B8E"}:(ROLES[user.role]||{ar:user.role,c:"#0284c7"});
+  return h("div",{style:{width:230,minHeight:"100vh",background:"#0F2044",color:"#fff",display:"flex",flexDirection:"column",flexShrink:0,position:"sticky",top:0,height:"100vh",overflowY:"auto"}},
+    h("div",{style:{padding:"24px 16px 18px",borderBottom:"1px solid rgba(255,255,255,.1)",textAlign:"center"}},
+      h("div",{style:{fontSize:36,marginBottom:6}},"🏥"),
+      h("div",{style:{fontSize:9,color:"rgba(255,255,255,.4)",letterSpacing:2,textTransform:"uppercase"}},"وزارة الصحة · MOH"),
+      h("div",{style:{fontSize:13,fontWeight:800,marginTop:4}},"نظام متابعة المشاريع"),
+      h("div",{style:{fontSize:9,color:"rgba(255,255,255,.3)",marginTop:1}},"Project Tracking v2")
+    ),
+    h("div",{style:{padding:"14px 10px",flex:1}},
+      nav.map(([v,label,icon])=>h("button",{key:v,onClick:()=>onView(v),style:{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"11px 14px",marginBottom:3,background:view===v?"rgba(27,139,142,.35)":"transparent",color:view===v?"#fff":"rgba(255,255,255,.6)",border:"none",borderRadius:10,cursor:"pointer",fontSize:14,fontFamily:"Cairo,sans-serif",textAlign:"right",borderRight:view===v?"3px solid #1B8B8E":"3px solid transparent",transition:"all .2s"}},h("span",{style:{fontSize:18}},icon),h("div",null,label)))
+    ),
+    h("div",{style:{padding:"14px 12px",borderTop:"1px solid rgba(255,255,255,.1)"}},
+      h("div",{style:{background:"rgba(255,255,255,.08)",borderRadius:10,padding:"10px 12px",marginBottom:10}},
+        h("div",{style:{fontSize:13,fontWeight:700}},user.name||rd.ar),
+        h("div",{style:{marginTop:5,display:"inline-block",background:rd.c+"40",color:rd.c,padding:"1px 8px",borderRadius:8,fontSize:10,fontWeight:700}},rd.ar)
+      ),
+      h("button",{onClick:onLogout,style:{width:"100%",padding:8,background:"rgba(220,38,38,.18)",color:"#fca5a5",border:"1px solid rgba(220,38,38,.3)",borderRadius:8,cursor:"pointer",fontSize:13,fontFamily:"Cairo,sans-serif"}},"🚪 تسجيل خروج")
+    )
+  );
 }
 
-/* ═══════════════ PROJECT FORM MODAL ═══════════════ */
+/* ── PROJECT FORM ── */
 function ProjModal({proj,onSave,onClose}){
-  const blank={id:"",name:"",location:"",type:"general",startDate:"",plannedEnd:"",actualEnd:"",budget:"",spent:"",contractor:"",durationMonths:"",pm:{name:"",phone:"",email:""},clinical:{name:"",phone:"",email:""},biomedical:{name:"",phone:"",email:""},it:{name:"",phone:"",email:""},hr:{name:"",phone:"",email:""},kpis:[],customFields:[]};
+  const blank={id:"",name:"",location:"",type:"general",startDate:"",plannedEnd:"",budget:"",spent:"",contractor:"",durationMonths:"",pm:{name:"",phone:"",email:""},clinical:{name:"",phone:"",email:""},biomedical:{name:"",phone:"",email:""},it:{name:"",phone:"",email:""},hr:{name:"",phone:"",email:""},kpis:[]};
   const[d,setD]=useState(proj?{...blank,...proj,kpis:proj.kpis||[]}:blank);
   const[tab,setTab]=useState("info");
   const set=(k,v)=>setD(p=>({...p,[k]:v}));
   const setC=(role,k,v)=>setD(p=>({...p,[role]:{...p[role],[k]:v}}));
-  const pt=getPT(d.type);
-  return <Modal title={proj?"تعديل المشروع / Edit Project":"مشروع جديد / New Project"} onClose={onClose} xl>
-    {/* Type selector */}
-    <div style={{display:"flex",gap:8,marginBottom:18,flexWrap:"wrap"}}>
-      {PROJ_TYPES.map(t=>(
-        <button key={t.v} onClick={()=>set("type",t.v)} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 14px",borderRadius:10,border:`2px solid ${d.type===t.v?t.clr:"#e2e8f0"}`,background:d.type===t.v?`${t.clr}15`:"#f8fafc",cursor:"pointer",fontSize:13,fontWeight:700,color:d.type===t.v?t.clr:"#64748b",transition:"all .2s"}}>
-          <span>{t.icon}</span><span>{t.ar}</span>
-        </button>
-      ))}
-    </div>
-    {/* Tabs */}
-    <div style={{display:"flex",borderBottom:"1px solid #e2e8f0",marginBottom:18}}>
-      {[["info","المعلومات الأساسية"],["stakeholders","الجهات المعنية"],["kpis","مؤشرات الأداء KPIs"]].map(([v,l])=>(
-        <button key={v} className={`tab-btn${tab===v?" active":""}`} onClick={()=>setTab(v)}>{l}</button>
-      ))}
-    </div>
-    {tab==="info"&&<div>
-      <F ar="اسم المركز الصحي / المشروع" en="Project Name"><input style={INP} value={d.name} onChange={e=>set("name",e.target.value)} placeholder="اسم المشروع..."/></F>
-      <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-        <F ar="الموقع (المحافظة/الولاية)" en="Location" half><input style={INP} value={d.location} onChange={e=>set("location",e.target.value)}/></F>
-        <F ar="المقاول" en="Contractor" half><input style={INP} value={d.contractor} onChange={e=>set("contractor",e.target.value)}/></F>
-      </div>
-      <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-        <F ar="تاريخ البدء" en="Start Date" third><input type="date" style={INP} value={d.startDate} onChange={e=>set("startDate",e.target.value)}/></F>
-        <F ar="تاريخ الإنجاز المخطط" en="Planned End" third><input type="date" style={INP} value={d.plannedEnd} onChange={e=>set("plannedEnd",e.target.value)}/></F>
-        <F ar="المدة (شهور)" en="Duration" third><input type="number" style={INP} value={d.durationMonths} onChange={e=>set("durationMonths",e.target.value)}/></F>
-      </div>
-      <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-        <F ar="الميزانية المعتمدة (ر.ع)" en="Budget (OMR)" half><input type="number" style={INP} value={d.budget} onChange={e=>set("budget",e.target.value)}/></F>
-        <F ar="المصروف الفعلي (ر.ع)" en="Spent (OMR)" half><input type="number" style={INP} value={d.spent} onChange={e=>set("spent",e.target.value)}/></F>
-      </div>
-    </div>}
-    {tab==="stakeholders"&&<div>
-      {Object.entries(ROLES).map(([role,rd])=>(
-        <div key={role} style={{marginBottom:10,padding:"12px 14px",background:"#f8fafc",borderRadius:10,borderRight:`3px solid ${rd.clr}`}}>
-          <div style={{fontSize:12,fontWeight:700,color:rd.clr,marginBottom:8}}>{rd.ar} / {rd.en}</div>
-          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-            {[["الاسم","name"],["الهاتف","phone"],["البريد","email"]].map(([l,k])=>(
-              <div key={k} style={{flex:1,minWidth:120}}><label style={{fontSize:11,color:"#64748b",display:"block",marginBottom:3}}>{l}</label><input style={{...INP,fontSize:13}} value={(d[role]||{})[k]||""} onChange={e=>setC(role,k,e.target.value)}/></div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>}
-    {tab==="kpis"&&<KPIForm kpis={d.kpis||[]} onChange={v=>set("kpis",v)} projectType={d.type}/>}
-    <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:20,paddingTop:16,borderTop:"1px solid #e2e8f0"}}>
-      <Btn color="#f1f5f9" tc="#374151" onClick={onClose}>إلغاء</Btn>
-      <Btn onClick={()=>onSave({...d,id:d.id||uid()})} disabled={!d.name}>💾 حفظ المشروع / Save</Btn>
-    </div>
-  </Modal>;
+  const pt=gpt(d.type);
+
+  function addKPI(t){
+    if(d.kpis.some(k=>k.name===t.n))return;
+    set("kpis",[...d.kpis,{id:uid(),name:t.n,unit:t.u,target:t.t,responsibleRole:t.r,actual:0}]);
+  }
+  function addBlankKPI(){set("kpis",[...d.kpis,{id:uid(),name:"",unit:"%",target:100,responsibleRole:"pm",actual:0}]);}
+  function updKPI(id,k,v){set("kpis",d.kpis.map(x=>x.id===id?{...x,[k]:v}:x));}
+  function delKPI(id){set("kpis",d.kpis.filter(x=>x.id!==id));}
+
+  const templates=(KPI_TPL[d.type]||KPI_TPL.general);
+
+  return h(Modal,{title:proj?"تعديل المشروع":"مشروع جديد",onClose,wide:true},
+    h("div",{style:{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}},
+      PTYPES.map(t=>h("button",{key:t.v,onClick:()=>set("type",t.v),style:{display:"flex",alignItems:"center",gap:6,padding:"7px 13px",borderRadius:10,border:"2px solid "+(d.type===t.v?t.c:"#e2e8f0"),background:d.type===t.v?t.c+"18":"#f8fafc",cursor:"pointer",fontSize:12,fontWeight:700,color:d.type===t.v?t.c:"#64748b",fontFamily:"Cairo,sans-serif"}},t.icon," ",t.ar))
+    ),
+    h("div",{style:{display:"flex",borderBottom:"1px solid #e2e8f0",marginBottom:16}},
+      ["info","stakeholders","kpis"].map((v,i)=>h(Tab,{key:v,label:["المعلومات","الجهات المعنية","مؤشرات KPI"][i],active:tab===v,onClick:()=>setTab(v)}))
+    ),
+    tab==="info"&&h("div",null,
+      h(F,{ar:"اسم المشروع / المركز الصحي",ch:h("input",{style:INP,value:d.name,onChange:e=>set("name",e.target.value),placeholder:"اسم المشروع..."})}),
+      h("div",{style:{display:"flex",gap:12}},
+        h(F,{ar:"الموقع",half:true,ch:h("input",{style:INP,value:d.location,onChange:e=>set("location",e.target.value)})}),
+        h(F,{ar:"المقاول",half:true,ch:h("input",{style:INP,value:d.contractor,onChange:e=>set("contractor",e.target.value)})})
+      ),
+      h("div",{style:{display:"flex",gap:12}},
+        h(F,{ar:"تاريخ البدء",half:true,ch:h("input",{type:"date",style:INP,value:d.startDate,onChange:e=>set("startDate",e.target.value)})}),
+        h(F,{ar:"تاريخ الإنجاز المخطط",half:true,ch:h("input",{type:"date",style:INP,value:d.plannedEnd,onChange:e=>set("plannedEnd",e.target.value)})})
+      ),
+      h("div",{style:{display:"flex",gap:12}},
+        h(F,{ar:"الميزانية المعتمدة (ر.ع)",half:true,ch:h("input",{type:"number",style:INP,value:d.budget,onChange:e=>set("budget",e.target.value)})}),
+        h(F,{ar:"المدة (شهور)",half:true,ch:h("input",{type:"number",style:INP,value:d.durationMonths,onChange:e=>set("durationMonths",e.target.value)})})
+      )
+    ),
+    tab==="stakeholders"&&h("div",null,
+      Object.entries(ROLES).map(([role,rd])=>h("div",{key:role,style:{marginBottom:10,padding:"12px 14px",background:"#f8fafc",borderRadius:10,borderRight:"3px solid "+rd.c}},
+        h("div",{style:{fontSize:12,fontWeight:700,color:rd.c,marginBottom:8}},rd.ar+" / "+rd.en),
+        h("div",{style:{display:"flex",gap:10}},
+          [["الاسم","name"],["الهاتف","phone"],["البريد","email"]].map(([l,k])=>h("div",{key:k,style:{flex:1}},
+            h("label",{style:{fontSize:11,color:"#64748b",display:"block",marginBottom:3}},l),
+            h("input",{style:{...INP,fontSize:13},value:(d[role]||{})[k]||"",onChange:e=>setC(role,k,e.target.value)})
+          ))
+        )
+      ))
+    ),
+    tab==="kpis"&&h("div",null,
+      h("div",{style:{marginBottom:12}},
+        h("div",{style:{fontSize:12,fontWeight:700,color:"#374151",marginBottom:8}},"📌 اقتراحات حسب نوع المشروع:"),
+        h("div",{style:{display:"flex",flexWrap:"wrap",gap:6}},
+          templates.map(t=>{const added=d.kpis.some(k=>k.name===t.n);return h("button",{key:t.n,onClick:()=>addKPI(t),disabled:added,style:{padding:"4px 12px",borderRadius:20,fontSize:11,fontWeight:700,border:"1.5px solid "+(added?"#d1d5db":"#1B8B8E"),background:added?"#f1f5f9":"#f0fdfa",color:added?"#94a3b8":"#0f766e",cursor:added?"default":"pointer",fontFamily:"Cairo,sans-serif"}},(added?"✅ ":"")+t.n);})
+        )
+      ),
+      d.kpis.map((k,i)=>h("div",{key:k.id,style:{background:"#f8fafc",borderRadius:10,padding:"12px 14px",marginBottom:8,border:"1px solid #e2e8f0"}},
+        h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}},
+          h("span",{style:{fontSize:12,fontWeight:700,color:"#0F2044"}},"مؤشر "+(i+1)),
+          h(Btn,{ch:"× حذف",sm:true,clr:"#fee2e2",tc:"#b91c1c",onClick:()=>delKPI(k.id)})
+        ),
+        h("div",{style:{display:"flex",flexWrap:"wrap",gap:10}},
+          h("div",{style:{flex:"1 1 180px"}},h("label",{style:{fontSize:11,color:"#64748b",display:"block",marginBottom:3}},"اسم المؤشر"),h("input",{style:{...INP,fontSize:13},value:k.name,onChange:e=>updKPI(k.id,"name",e.target.value),placeholder:"مثال: نسبة الإنجاز"})),
+          h("div",{style:{flex:"1 1 70px"}},h("label",{style:{fontSize:11,color:"#64748b",display:"block",marginBottom:3}},"الوحدة"),h("input",{style:{...INP,fontSize:13},value:k.unit,onChange:e=>updKPI(k.id,"unit",e.target.value)})),
+          h("div",{style:{flex:"1 1 70px"}},h("label",{style:{fontSize:11,color:"#64748b",display:"block",marginBottom:3}},"الهدف"),h("input",{type:"number",style:{...INP,fontSize:13},value:k.target,onChange:e=>updKPI(k.id,"target",e.target.value)})),
+          h("div",{style:{flex:"1 1 160px"}},h("label",{style:{fontSize:11,color:"#64748b",display:"block",marginBottom:3}},"الجهة المسؤولة"),h("select",{style:{...INP,fontSize:13},value:k.responsibleRole,onChange:e=>updKPI(k.id,"responsibleRole",e.target.value)},Object.entries(ROLES).map(([v,r])=>h("option",{key:v,value:v},r.ar))))
+        )
+      )),
+      h(Btn,{ch:"+ إضافة مؤشر مخصص",clr:"#1B8B8E",onClick:addBlankKPI,style:{marginTop:4}})
+    ),
+    h("div",{style:{display:"flex",gap:10,justifyContent:"flex-end",marginTop:20,paddingTop:16,borderTop:"1px solid #e2e8f0"}},
+      h(Btn,{ch:"إلغاء",clr:"#f1f5f9",tc:"#374151",onClick:onClose}),
+      h(Btn,{ch:"💾 حفظ المشروع",onClick:()=>onSave({...d,id:d.id||uid()}),disabled:!d.name})
+    )
+  );
 }
 
-/* ═══════════════ STAGE MODAL ═══════════════ */
-function StageModal({stage,projectId,users,onSave,onClose}){
-  const blank={id:"",projectId,name:"",startDate:"",endDate:"",actualEnd:"",status:"not_started",completionPct:0,responsibleRole:"pm",notes:"",tasks:[]};
+/* ── STAGE MODAL ── */
+function StageModal({stage,projectId,onSave,onClose}){
+  const blank={id:"",projectId,name:"",startDate:"",endDate:"",status:"not_started",completionPct:0,responsibleRole:"pm",notes:"",tasks:[]};
   const[d,setD]=useState(stage?{...blank,...stage,tasks:stage.tasks||[]}:blank);
   const[tab,setTab]=useState("info");
   const set=(k,v)=>setD(p=>({...p,[k]:v}));
-  return <Modal title={stage?"تعديل مرحلة / Edit Stage":"إضافة مرحلة / Add Stage"} onClose={onClose} wide>
-    <div style={{display:"flex",borderBottom:"1px solid #e2e8f0",marginBottom:18}}>
-      {[["info","معلومات المرحلة"],["tasks","المهام الفرعية ("+((d.tasks||[]).length)+")"]].map(([v,l])=>(
-        <button key={v} className={`tab-btn${tab===v?" active":""}`} onClick={()=>setTab(v)}>{l}</button>
-      ))}
-    </div>
-    {tab==="info"&&<div>
-      <F ar="اسم المرحلة" en="Stage Name"><input style={INP} value={d.name} onChange={e=>set("name",e.target.value)} placeholder="وصف المرحلة..."/></F>
-      <div style={{display:"flex",gap:12}}>
-        <F ar="تاريخ البدء" half><input type="date" style={INP} value={d.startDate} onChange={e=>set("startDate",e.target.value)}/></F>
-        <F ar="تاريخ الانتهاء" half><input type="date" style={INP} value={d.endDate} onChange={e=>set("endDate",e.target.value)}/></F>
-      </div>
-      <div style={{display:"flex",gap:12}}>
-        <F ar="الحالة" half><select style={INP} value={d.status} onChange={e=>set("status",e.target.value)}>{STATUSES.map(s=><option key={s.v} value={s.v}>{s.ar} / {s.en}</option>)}</select></F>
-        <F ar="نسبة الإنجاز %" half><input type="number" min={0} max={100} style={INP} value={d.completionPct} onChange={e=>set("completionPct",Math.min(100,+e.target.value))}/></F>
-      </div>
-      <F ar="الجهة المسؤولة" en="Responsible"><select style={INP} value={d.responsibleRole} onChange={e=>set("responsibleRole",e.target.value)}>{Object.entries(ROLES).map(([k,r])=><option key={k} value={k}>{r.ar} / {r.en}</option>)}</select></F>
-      <F ar="ملاحظات" en="Notes"><textarea style={{...INP,minHeight:68,resize:"vertical"}} value={d.notes} onChange={e=>set("notes",e.target.value)}/></F>
-    </div>}
-    {tab==="tasks"&&<TaskForm tasks={d.tasks||[]} onChange={v=>set("tasks",v)} users={users}/>}
-    <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}}>
-      <Btn color="#f1f5f9" tc="#374151" onClick={onClose}>إلغاء</Btn>
-      <Btn onClick={()=>onSave({...d,id:d.id||uid()})} disabled={!d.name}>💾 حفظ / Save</Btn>
-    </div>
-  </Modal>;
+  function addTask(){set("tasks",[...d.tasks,{id:uid(),title:"",assignedRole:"pm",status:"pending",dueDate:"",priority:"normal",notes:""}]);}
+  function updTask(id,k,v){set("tasks",d.tasks.map(t=>t.id===id?{...t,[k]:v}:t));}
+  function delTask(id){set("tasks",d.tasks.filter(t=>t.id!==id));}
+
+  return h(Modal,{title:stage?"تعديل مرحلة":"إضافة مرحلة",onClose,wide:true},
+    h("div",{style:{display:"flex",borderBottom:"1px solid #e2e8f0",marginBottom:16}},
+      h(Tab,{label:"معلومات المرحلة",active:tab==="info",onClick:()=>setTab("info")}),
+      h(Tab,{label:"المهام الفرعية ("+d.tasks.length+")",active:tab==="tasks",onClick:()=>setTab("tasks")})
+    ),
+    tab==="info"&&h("div",null,
+      h(F,{ar:"اسم المرحلة",ch:h("input",{style:INP,value:d.name,onChange:e=>set("name",e.target.value),placeholder:"وصف المرحلة..."})}),
+      h("div",{style:{display:"flex",gap:12}},
+        h(F,{ar:"تاريخ البدء",half:true,ch:h("input",{type:"date",style:INP,value:d.startDate,onChange:e=>set("startDate",e.target.value)})}),
+        h(F,{ar:"تاريخ الانتهاء",half:true,ch:h("input",{type:"date",style:INP,value:d.endDate,onChange:e=>set("endDate",e.target.value)})})
+      ),
+      h("div",{style:{display:"flex",gap:12}},
+        h(F,{ar:"الحالة",half:true,ch:h("select",{style:INP,value:d.status,onChange:e=>set("status",e.target.value)},STATS.map(s=>h("option",{key:s.v,value:s.v},s.ar)))}),
+        h(F,{ar:"نسبة الإنجاز %",half:true,ch:h("input",{type:"number",min:0,max:100,style:INP,value:d.completionPct,onChange:e=>set("completionPct",Math.min(100,+e.target.value))})})
+      ),
+      h(F,{ar:"الجهة المسؤولة",ch:h("select",{style:INP,value:d.responsibleRole,onChange:e=>set("responsibleRole",e.target.value)},Object.entries(ROLES).map(([k,r])=>h("option",{key:k,value:k},r.ar+" / "+r.en)))}),
+      h(F,{ar:"ملاحظات",ch:h("textarea",{style:{...INP,minHeight:68,resize:"vertical"},value:d.notes,onChange:e=>set("notes",e.target.value)})})
+    ),
+    tab==="tasks"&&h("div",null,
+      d.tasks.length===0&&h("div",{style:{textAlign:"center",padding:"14px 0",color:"#94a3b8",fontSize:12}},"لا توجد مهام — اضغط إضافة"),
+      d.tasks.map((t,i)=>h("div",{key:t.id,style:{background:"#f8fafc",borderRadius:10,padding:"11px 13px",marginBottom:7,border:"1px solid #e2e8f0"}},
+        h("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:8}},
+          h("span",{style:{fontSize:11,fontWeight:700,color:"#0F2044"}},"مهمة "+(i+1)),
+          h(Btn,{ch:"× حذف",sm:true,clr:"#fee2e2",tc:"#b91c1c",onClick:()=>delTask(t.id)})
+        ),
+        h("div",{style:{display:"flex",flexWrap:"wrap",gap:8}},
+          h("div",{style:{flex:"1 1 200px"}},h("label",{style:{fontSize:11,color:"#64748b",display:"block",marginBottom:3}},"عنوان المهمة"),h("input",{style:{...INP,fontSize:13},value:t.title,onChange:e=>updTask(t.id,"title",e.target.value)})),
+          h("div",{style:{flex:"1 1 140px"}},h("label",{style:{fontSize:11,color:"#64748b",display:"block",marginBottom:3}},"المسؤول"),h("select",{style:{...INP,fontSize:13},value:t.assignedRole,onChange:e=>updTask(t.id,"assignedRole",e.target.value)},Object.entries(ROLES).map(([v,r])=>h("option",{key:v,value:v},r.ar)))),
+          h("div",{style:{flex:"1 1 120px"}},h("label",{style:{fontSize:11,color:"#64748b",display:"block",marginBottom:3}},"تاريخ الاستحقاق"),h("input",{type:"date",style:{...INP,fontSize:13},value:t.dueDate||"",onChange:e=>updTask(t.id,"dueDate",e.target.value)})),
+          h("div",{style:{flex:"1 1 100px"}},h("label",{style:{fontSize:11,color:"#64748b",display:"block",marginBottom:3}},"الأولوية"),h("select",{style:{...INP,fontSize:13},value:t.priority||"normal",onChange:e=>updTask(t.id,"priority",e.target.value)},h("option",{value:"high"},"عالية 🔴"),h("option",{value:"normal"},"عادية 🟡"),h("option",{value:"low"},"منخفضة 🟢")))
+        )
+      )),
+      h(Btn,{ch:"+ إضافة مهمة فرعية",clr:"#1B8B8E",onClick:addTask,style:{marginTop:4}})
+    ),
+    h("div",{style:{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}},
+      h(Btn,{ch:"إلغاء",clr:"#f1f5f9",tc:"#374151",onClick:onClose}),
+      h(Btn,{ch:"💾 حفظ",onClick:()=>onSave({...d,id:d.id||uid()}),disabled:!d.name})
+    )
+  );
 }
 
-/* ═══════════════ USER MODAL ═══════════════ */
+/* ── USER MODAL ── */
 function UserModal({projects,onSave,onClose}){
   const[d,setD]=useState({id:"",code:"",role:"pm",name:"",phone:"",projectIds:[]});
   const set=(k,v)=>setD(p=>({...p,[k]:v}));
   const tog=id=>set("projectIds",d.projectIds.includes(id)?d.projectIds.filter(x=>x!==id):[...d.projectIds,id]);
-  const gen=()=>{const px=d.role.slice(0,2).toUpperCase();set("code",`${px}-${Math.random().toString(36).slice(2,8).toUpperCase()}`);}
-  return <Modal title="إضافة مستخدم / Add User" onClose={onClose}>
-    <F ar="الاسم الكامل"><input style={INP} value={d.name} onChange={e=>set("name",e.target.value)}/></F>
-    <div style={{display:"flex",gap:12}}>
-      <F ar="الدور" half><select style={INP} value={d.role} onChange={e=>set("role",e.target.value)}>{Object.entries(ROLES).map(([k,r])=><option key={k} value={k}>{r.ar}</option>)}</select></F>
-      <F ar="الهاتف" half><input style={INP} value={d.phone} onChange={e=>set("phone",e.target.value)}/></F>
-    </div>
-    <F ar="رمز الدخول"><div style={{display:"flex",gap:8}}><input style={{...INP,flex:1,letterSpacing:2,fontWeight:700}} value={d.code} onChange={e=>set("code",e.target.value.toUpperCase())} placeholder="أدخل أو اضغط توليد..."/><Btn onClick={gen} color="#0284c7">🎲 توليد</Btn></div></F>
-    <F ar="المشاريع المخصصة"><div style={{maxHeight:150,overflowY:"auto",border:"1.5px solid #d1d5db",borderRadius:8,padding:8}}>
-      {projects.length===0?<div style={{fontSize:12,color:"#94a3b8",textAlign:"center",padding:12}}>لا توجد مشاريع</div>:
-      projects.map(p=><label key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 8px",cursor:"pointer",borderRadius:6,background:d.projectIds.includes(p.id)?"#dbeafe":"transparent",marginBottom:2}}>
-        <input type="checkbox" checked={d.projectIds.includes(p.id)} onChange={()=>tog(p.id)}/>
-        <span style={{fontSize:13,fontWeight:600}}>{p.name}</span>
-        <span style={{fontSize:11,color:"#94a3b8"}}>{getPT(p.type).icon} {p.location}</span>
-      </label>)}
-    </div></F>
-    <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}}>
-      <Btn color="#f1f5f9" tc="#374151" onClick={onClose}>إلغاء</Btn>
-      <Btn onClick={()=>onSave({...d,id:uid()})} disabled={!d.name||!d.code}>💾 حفظ</Btn>
-    </div>
-  </Modal>;
+  const gen=()=>set("code",d.role.slice(0,2).toUpperCase()+"-"+Math.random().toString(36).slice(2,8).toUpperCase());
+  return h(Modal,{title:"إضافة مستخدم",onClose},
+    h(F,{ar:"الاسم الكامل",ch:h("input",{style:INP,value:d.name,onChange:e=>set("name",e.target.value)})}),
+    h("div",{style:{display:"flex",gap:12}},
+      h(F,{ar:"الدور",half:true,ch:h("select",{style:INP,value:d.role,onChange:e=>set("role",e.target.value)},Object.entries(ROLES).map(([k,r])=>h("option",{key:k,value:k},r.ar)))}),
+      h(F,{ar:"الهاتف",half:true,ch:h("input",{style:INP,value:d.phone,onChange:e=>set("phone",e.target.value)})})
+    ),
+    h(F,{ar:"رمز الدخول",ch:h("div",{style:{display:"flex",gap:8}},
+      h("input",{style:{...INP,flex:1,letterSpacing:2,fontWeight:700},value:d.code,onChange:e=>set("code",e.target.value.toUpperCase()),placeholder:"أدخل أو اضغط توليد..."}),
+      h(Btn,{ch:"🎲 توليد",clr:"#0284c7",onClick:gen})
+    )}),
+    h(F,{ar:"المشاريع المخصصة",ch:h("div",{style:{maxHeight:150,overflowY:"auto",border:"1.5px solid #d1d5db",borderRadius:8,padding:8}},
+      projects.length===0?h("div",{style:{fontSize:12,color:"#94a3b8",textAlign:"center",padding:12}},"لا توجد مشاريع بعد"):
+      projects.map(p=>{const pt=gpt(p.type);return h("label",{key:p.id,style:{display:"flex",alignItems:"center",gap:8,padding:"5px 8px",cursor:"pointer",borderRadius:6,background:d.projectIds.includes(p.id)?"#dbeafe":"transparent",marginBottom:2}},
+        h("input",{type:"checkbox",checked:d.projectIds.includes(p.id),onChange:()=>tog(p.id)}),
+        h("span",{style:{fontSize:13,fontWeight:600}},pt.icon+" "+p.name),
+        h("span",{style:{fontSize:11,color:"#94a3b8"}},p.location)
+      );})
+    )}),
+    h("div",{style:{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}},
+      h(Btn,{ch:"إلغاء",clr:"#f1f5f9",tc:"#374151",onClick:onClose}),
+      h(Btn,{ch:"💾 حفظ",onClick:()=>onSave({...d,id:uid()}),disabled:!d.name||!d.code})
+    )
+  );
 }
 
-/* ═══════════════ UPDATE MODAL (FOCAL POINT) ═══════════════ */
-function UpdateModal({stage,project,user,allUsers,onSave,onClose}){
+/* ── UPDATE MODAL ── */
+function UpdateModal({stage,project,user,onSave,onClose}){
   const[d,setD]=useState({...stage,tasks:[...(stage.tasks||[]).map(t=>({...t}))]});
-  const[spent,setSpent]=useState(project?.spent||"");
-  const[kpis,setKpis]=useState((project?.kpis||[]).map(k=>({...k})));
+  const[spent,setSpent]=useState(project.spent||"");
   const set=(k,v)=>setD(p=>({...p,[k]:v}));
-  const setTask=(tid,k,v)=>setD(p=>({...p,tasks:p.tasks.map(t=>t.id===tid?{...t,[k]:v,updatedAt:new Date().toISOString()}:t)}));
+  function setTask(tid,k,v){setD(p=>({...p,tasks:p.tasks.map(t=>t.id===tid?{...t,[k]:v}:t)}));}
   const myTasks=(d.tasks||[]).filter(t=>t.assignedRole===user.role);
-  const myKpis=kpis.filter(k=>k.responsibleRole===user.role);
-  const st=getSt(d.status);
-  return <Modal title="تحديث المرحلة / Update Stage" onClose={onClose} wide>
-    <div style={{background:"#f8fafc",borderRadius:10,padding:"12px 14px",marginBottom:18,borderRight:`3px solid ${st.clr}`}}>
-      <div style={{fontSize:11,color:"#64748b"}}>المشروع</div>
-      <div style={{fontSize:16,fontWeight:800,color:"#0F2044"}}>{project?.name}</div>
-      <div style={{fontSize:12,color:"#64748b",marginTop:2}}>المرحلة: <b>{stage.name}</b></div>
-    </div>
-    <div style={{display:"flex",gap:12}}>
-      <F ar="الحالة" half><select style={INP} value={d.status} onChange={e=>set("status",e.target.value)}>{STATUSES.map(s=><option key={s.v} value={s.v}>{s.ar} / {s.en}</option>)}</select></F>
-      <F ar="نسبة الإنجاز %" half><input type="number" min={0} max={100} style={INP} value={d.completionPct} onChange={e=>set("completionPct",Math.min(100,+e.target.value))}/></F>
-    </div>
-    <F ar="تاريخ الإنجاز الفعلي"><input type="date" style={INP} value={d.actualEnd||""} onChange={e=>set("actualEnd",e.target.value)}/></F>
-    <F ar="ملاحظات التحديث"><textarea style={{...INP,minHeight:68,resize:"vertical"}} value={d.notes||""} onChange={e=>set("notes",e.target.value)}/></F>
-
-    {myTasks.length>0&&<div style={{marginTop:8}}>
-      <Sec t={`📌 مهامك الفرعية (${myTasks.length})`}/>
-      {myTasks.map(t=>{const ts=getTSt(t.status);return <div key={t.id} className="task-item" style={{background:"#f8fafc",borderRadius:10,padding:"10px 12px",marginBottom:7,border:"1px solid #e2e8f0",transition:"background .15s"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
-          <div style={{flex:1}}>
-            <div style={{fontSize:13,fontWeight:700,color:"#1e293b"}}>{t.priority==="high"?"🔴 ":t.priority==="low"?"🟢 ":"🟡 "}{t.title}</div>
-            {t.dueDate&&<div style={{fontSize:11,color:isOverdue(t.dueDate)&&t.status!=="done"?"#dc2626":"#64748b",marginTop:2}}>📅 {t.dueDate}{isOverdue(t.dueDate)&&t.status!=="done"?" ⚠️ متأخرة":""}</div>}
-            {t.notes&&<div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>{t.notes}</div>}
-          </div>
-          <select value={t.status} onChange={e=>setTask(t.id,"status",e.target.value)} style={{...INP,width:"auto",fontSize:12,padding:"4px 8px",background:ts.bg,color:ts.clr,fontWeight:700,border:"none"}}>
-            {TASK_STATUSES.map(s=><option key={s.v} value={s.v}>{s.ar}</option>)}
-          </select>
-        </div>
-      </div>;})}
-    </div>}
-
-    {myKpis.length>0&&<div style={{marginTop:8}}>
-      <Sec t="📊 مؤشرات الأداء (تحديث القيم الفعلية)"/>
-      {myKpis.map(k=>(
-        <div key={k.id} style={{display:"flex",alignItems:"center",gap:12,background:"#f0fdf4",borderRadius:10,padding:"10px 14px",marginBottom:7,borderRight:"3px solid #16a34a"}}>
-          <div style={{flex:1}}>
-            <div style={{fontSize:13,fontWeight:700,color:"#15803d"}}>{k.name}</div>
-            <div style={{fontSize:11,color:"#64748b"}}>الهدف: <b>{k.target} {k.unit}</b></div>
-          </div>
-          <div style={{textAlign:"center"}}>
-            <div style={{fontSize:11,color:"#64748b",marginBottom:3}}>القيمة الفعلية</div>
-            <input type="number" style={{...INP,width:90,textAlign:"center",fontWeight:800,fontSize:15}} value={k.actual||0} onChange={e=>setKpis(kpis.map(x=>x.id===k.id?{...x,actual:e.target.value}:x))}/>
-          </div>
-          <div style={{width:48}}><Bar p={pct(k.actual,k.target)} h={8}/><div style={{fontSize:10,color:"#16a34a",textAlign:"center",marginTop:2}}>{pct(k.actual,k.target)}%</div></div>
-        </div>
-      ))}
-    </div>}
-
-    {user.role==="pm"&&<div style={{marginTop:8,padding:"14px 16px",background:"#f0fdf4",borderRadius:10,border:"1px solid #bbf7d0"}}>
-      <div style={{fontSize:12,fontWeight:800,color:"#15803d",marginBottom:10}}>💰 التحديث المالي (مدير المشروع)</div>
-      <F ar="المصروف الفعلي (ر.ع)"><input type="number" style={INP} value={spent} onChange={e=>setSpent(e.target.value)}/></F>
-      {project?.budget>0&&<div style={{fontSize:11,color:"#16a34a"}}>نسبة الصرف: {pct(spent,project.budget)}% من {fmt(project.budget)} ر.ع</div>}
-    </div>}
-
-    <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:18}}>
-      <Btn color="#f1f5f9" tc="#374151" onClick={onClose}>إلغاء</Btn>
-      <Btn color="#16a34a" onClick={()=>onSave({...d,updatedAt:new Date().toISOString()},user.role==="pm"?{spent}:null,kpis)}>✅ حفظ التحديث</Btn>
-    </div>
-  </Modal>;
+  const st=gst(d.status);
+  return h(Modal,{title:"تحديث المرحلة",onClose,wide:true},
+    h("div",{style:{background:"#f8fafc",borderRadius:10,padding:"12px 14px",marginBottom:16,borderRight:"3px solid "+st.c}},
+      h("div",{style:{fontSize:11,color:"#64748b"}},"المشروع"),
+      h("div",{style:{fontSize:16,fontWeight:800,color:"#0F2044"}},project.name),
+      h("div",{style:{fontSize:12,color:"#64748b",marginTop:2}},"المرحلة: "+stage.name)
+    ),
+    h("div",{style:{display:"flex",gap:12}},
+      h(F,{ar:"الحالة",half:true,ch:h("select",{style:INP,value:d.status,onChange:e=>set("status",e.target.value)},STATS.map(s=>h("option",{key:s.v,value:s.v},s.ar)))}),
+      h(F,{ar:"نسبة الإنجاز %",half:true,ch:h("input",{type:"number",min:0,max:100,style:INP,value:d.completionPct,onChange:e=>set("completionPct",Math.min(100,+e.target.value))})})
+    ),
+    h(F,{ar:"تاريخ الإنجاز الفعلي",ch:h("input",{type:"date",style:INP,value:d.actualEnd||"",onChange:e=>set("actualEnd",e.target.value)})}),
+    h(F,{ar:"ملاحظات",ch:h("textarea",{style:{...INP,minHeight:68,resize:"vertical"},value:d.notes||"",onChange:e=>set("notes",e.target.value)})}),
+    myTasks.length>0&&h("div",{style:{marginTop:8}},
+      h(Sec,{t:"📌 مهامك الفرعية ("+myTasks.length+")"}),
+      myTasks.map(t=>{const ts=gtst(t.status);const od=overdue(t.dueDate)&&t.status!=="done";return h("div",{key:t.id,style:{background:od?"#fff5f5":"#f8fafc",borderRadius:10,padding:"10px 12px",marginBottom:7,border:"1px solid "+(od?"#fecaca":"#e2e8f0")}},
+        h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}},
+          h("div",null,
+            h("div",{style:{fontSize:13,fontWeight:700,color:"#1e293b"}},(t.priority==="high"?"🔴 ":t.priority==="low"?"🟢 ":"🟡 ")+t.title),
+            t.dueDate&&h("div",{style:{fontSize:11,color:od?"#dc2626":"#64748b",marginTop:2}},"📅 "+t.dueDate+(od?" ⚠️ متأخرة":"")),
+            t.notes&&h("div",{style:{fontSize:11,color:"#94a3b8"}},t.notes)
+          ),
+          h("select",{value:t.status,onChange:e=>setTask(t.id,"status",e.target.value),style:{...INP,width:"auto",fontSize:12,padding:"4px 8px",background:ts.bg,color:ts.c,fontWeight:700,border:"none"}},
+            TSTATS.map(s=>h("option",{key:s.v,value:s.v},s.ar))
+          )
+        )
+      );})
+    ),
+    user.role==="pm"&&h("div",{style:{marginTop:8,padding:"14px 16px",background:"#f0fdf4",borderRadius:10,border:"1px solid #bbf7d0"}},
+      h("div",{style:{fontSize:12,fontWeight:800,color:"#15803d",marginBottom:10}},"💰 التحديث المالي (مدير المشروع)"),
+      h(F,{ar:"المصروف الفعلي (ر.ع)",ch:h("input",{type:"number",style:INP,value:spent,onChange:e=>setSpent(e.target.value)})}),
+      project.budget>0&&h("div",{style:{fontSize:11,color:"#16a34a"}},"نسبة الصرف: "+pct(spent,project.budget)+"% من "+fmt(project.budget)+" ر.ع")
+    ),
+    h("div",{style:{display:"flex",gap:10,justifyContent:"flex-end",marginTop:18}},
+      h(Btn,{ch:"إلغاء",clr:"#f1f5f9",tc:"#374151",onClick:onClose}),
+      h(Btn,{ch:"✅ حفظ التحديث",clr:"#16a34a",onClick:()=>onSave({...d,updatedAt:new Date().toISOString()},user.role==="pm"?{spent}:null)})
+    )
+  );
 }
 
-/* ═══════════════ PROJECT DASHBOARD (ADMIN) ═══════════════ */
-function ProjectDashboard({project,stages,users,onBack,onAddStage,onEditStage,onDelStage,onEditProject}){
+/* ── PROJECT DASHBOARD ── */
+function ProjDash({project,stages,onBack,onAddStage,onEditStage,onDelStage,onEditProj}){
   const[tab,setTab]=useState("overview");
-  const[expandedStage,setExpandedStage]=useState(null);
+  const[exp,setExp]=useState(null);
   const ps=stages.filter(s=>s.projectId===project.id);
   const avgP=ps.length?Math.round(ps.reduce((a,s)=>a+(s.completionPct||0),0)/ps.length):0;
-  const allTasks=ps.flatMap(s=>(s.tasks||[]).map(t=>({...t,stageName:s.name,stageId:s.id})));
+  const allTasks=ps.flatMap(s=>(s.tasks||[]).map(t=>({...t,stageName:s.name})));
   const doneTasks=allTasks.filter(t=>t.status==="done").length;
   const alerts=getAlerts(project,ps);
-  const pt=getPT(project.type);
-  const spentPct=pct(project.spent,project.budget);
+  const pt=gpt(project.type);
+  const sp=pct(project.spent,project.budget);
 
-  return <div className="fade-in">
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
-      <button onClick={onBack} style={{border:"none",background:"none",cursor:"pointer",color:"#0284c7",fontSize:14,padding:0,fontFamily:"Cairo,sans-serif",fontWeight:700}}>← رجوع للمشاريع</button>
-      <div style={{display:"flex",gap:8}}>
-        <Btn sm color="#f1f5f9" tc="#374151" onClick={()=>onEditProject(project)}>✏️ تعديل المشروع</Btn>
-        <Btn sm color="#1B8B8E" onClick={()=>onAddStage(project.id)}>+ إضافة مرحلة</Btn>
-      </div>
-    </div>
-
-    {/* Header */}
-    <div style={{background:"linear-gradient(135deg,#0F2044,#1a4a6e)",borderRadius:16,padding:"22px 26px",marginBottom:16,color:"#fff",position:"relative",overflow:"hidden"}}>
-      <div style={{position:"absolute",top:-20,left:-20,width:120,height:120,borderRadius:"50%",background:"rgba(27,139,142,.2)"}}/>
-      <div style={{position:"absolute",bottom:-30,left:80,width:80,height:80,borderRadius:"50%",background:"rgba(27,139,142,.15)"}}/>
-      <div style={{position:"relative"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-          <span style={{fontSize:24}}>{pt.icon}</span>
-          <div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,.5)",letterSpacing:1}}>{pt.ar} · {project.location}</div>
-            <h2 style={{margin:0,fontSize:22,fontWeight:900}}>{project.name}</h2>
-          </div>
-          {alerts.length>0&&<div style={{marginRight:"auto",background:"#dc2626",color:"#fff",borderRadius:20,padding:"3px 12px",fontSize:12,fontWeight:700}}>⚠️ {alerts.length} تنبيه</div>}
-        </div>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
-          {[project.contractor&&`🏗 ${project.contractor}`,project.startDate&&`📅 ${project.startDate}`,project.plannedEnd&&`🏁 ${project.plannedEnd}`,project.durationMonths&&`⏱ ${project.durationMonths} شهر`].filter(Boolean).map((x,i)=>(
-            <span key={i} style={{fontSize:11,color:"rgba(255,255,255,.6)",background:"rgba(255,255,255,.08)",padding:"2px 10px",borderRadius:20}}>{x}</span>
-          ))}
-        </div>
-        <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
-          {[["الميزانية",fmt(project.budget)+" ر.ع","#60a5fa"],["المصروف",fmt(project.spent)+" ر.ع","#34d399"],["المتبقي",fmt(Number(project.budget||0)-Number(project.spent||0))+" ر.ع","#fbbf24"],["نسبة الصرف",spentPct+"%",spentPct>90?"#f87171":"#60a5fa"]].map(([l,v,c])=>(
-            <div key={l}><div style={{fontSize:10,color:"rgba(255,255,255,.5)"}}>{l}</div><div style={{fontSize:17,fontWeight:800,color:c}}>{v}</div></div>
-          ))}
-        </div>
-        <div style={{marginTop:14}}>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"rgba(255,255,255,.5)",marginBottom:4}}><span>الإنجاز الكلي</span><span style={{fontWeight:800,color:"#fff"}}>{avgP}%</span></div>
-          <div style={{background:"rgba(255,255,255,.15)",borderRadius:10,height:8}}><div style={{width:`${avgP}%`,background:avgP>=100?"#34d399":avgP>=60?"#60a5fa":"#fbbf24",height:"100%",borderRadius:10,transition:"width .8s"}}/></div>
-        </div>
-      </div>
-    </div>
-
-    {/* Quick stats */}
-    <div style={{display:"flex",gap:12,marginBottom:16,flexWrap:"wrap"}}>
-      {[["المراحل",ps.length,"🗂","#0F2044"],["مكتملة",ps.filter(s=>s.status==="completed").length,"✅","#16a34a"],["متأخرة",ps.filter(s=>s.status==="delayed").length,"⚠️","#dc2626"],["المهام",allTasks.length,"📌","#7c3aed"],["منجزة",doneTasks,"✔","#16a34a"],["مؤشرات KPI",(project.kpis||[]).length,"📊","#ea580c"]].map(([l,v,icon,c])=>(
-        <div key={l} style={{background:"#fff",borderRadius:12,padding:"12px 16px",flex:1,minWidth:80,textAlign:"center",boxShadow:"0 2px 10px rgba(0,0,0,.06)"}}>
-          <div style={{fontSize:20}}>{icon}</div>
-          <div style={{fontSize:22,fontWeight:900,color:c,lineHeight:1.1}}>{v}</div>
-          <div style={{fontSize:10,color:"#64748b",marginTop:2}}>{l}</div>
-        </div>
-      ))}
-    </div>
-
-    {/* Tabs */}
-    <div style={{background:"#fff",borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,.07)"}}>
-      <div style={{display:"flex",borderBottom:"1px solid #e2e8f0",padding:"0 8px"}}>
-        {[["overview","نظرة عامة"],["stages","المراحل والمهام"],["kpis","مؤشرات الأداء"],["team","الفريق"],["alerts","التنبيهات"+(alerts.length>0?` (${alerts.length})`:"")]].map(([v,l])=>(
-          <button key={v} className={`tab-btn${tab===v?" active":""}`} onClick={()=>setTab(v)}>{l}</button>
-        ))}
-      </div>
-      <div style={{padding:"20px 24px"}}>
-
-        {/* OVERVIEW TAB */}
-        {tab==="overview"&&<div>
-          <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
-            <div style={{flex:"1 1 220px"}}>
-              <div style={{fontWeight:800,color:"#0F2044",marginBottom:14,fontSize:14}}>الإنجاز الكلي / Overall Progress</div>
-              <div style={{display:"flex",justifyContent:"center",marginBottom:16}}><Ring pct={avgP} size={120} color={avgP>=100?"#16a34a":avgP>=60?"#0284c7":"#f59e0b"} label="إنجاز كلي"/></div>
-              <div style={{display:"flex",justifyContent:"space-around"}}>
-                {[["المالي",spentPct,"#16a34a"],["المراحل",ps.length?Math.round(ps.filter(s=>s.status==="completed").length/ps.length*100):0,"#0284c7"],["المهام",allTasks.length?Math.round(doneTasks/allTasks.length*100):0,"#7c3aed"]].map(([l,v,c])=>(
-                  <div key={l} style={{textAlign:"center"}}><Ring pct={v} size={60} color={c}/><div style={{fontSize:10,color:"#64748b",marginTop:3}}>{l}</div></div>
-                ))}
-              </div>
-            </div>
-            <div style={{flex:"1 1 260px"}}>
-              <div style={{fontWeight:800,color:"#0F2044",marginBottom:14,fontSize:14}}>تقدم المراحل / Stage Progress</div>
-              {ps.length===0?<div style={{color:"#94a3b8",textAlign:"center",padding:"20px 0"}}>لا توجد مراحل بعد</div>:
-              ps.map(s=>(
-                <div key={s.id} style={{marginBottom:10}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                    <div style={{fontSize:12,fontWeight:700,color:"#374151",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</div>
-                    <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
-                      <Badge v={s.status}/>
-                      <span style={{fontSize:11,fontWeight:700,color:"#0284c7"}}>{s.completionPct||0}%</span>
-                    </div>
-                  </div>
-                  <Bar p={s.completionPct||0}/>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>}
-
-        {/* STAGES & TASKS TAB */}
-        {tab==="stages"&&<div>
-          {ps.length===0?<div style={{textAlign:"center",padding:"32px 0",color:"#94a3b8"}}><div style={{fontSize:40,marginBottom:8}}>🗂</div><div>لا توجد مراحل بعد</div></div>:
+  return h("div",{className:"fi"},
+    h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}},
+      h("button",{onClick:onBack,className:"nb",style:{color:"#0284c7",fontSize:14,fontWeight:700}},"← رجوع للمشاريع"),
+      h("div",{style:{display:"flex",gap:8}},
+        h(Btn,{ch:"✏️ تعديل المشروع",sm:true,clr:"#f1f5f9",tc:"#374151",onClick:()=>onEditProj(project)}),
+        h(Btn,{ch:"+ إضافة مرحلة",sm:true,clr:"#1B8B8E",onClick:()=>onAddStage(project.id)})
+      )
+    ),
+    /* header */
+    h("div",{style:{background:"linear-gradient(135deg,#0F2044,#1a4a6e)",borderRadius:16,padding:"22px 26px",marginBottom:14,color:"#fff",position:"relative",overflow:"hidden"}},
+      h("div",{style:{position:"absolute",top:-20,left:-20,width:120,height:120,borderRadius:"50%",background:"rgba(27,139,142,.2)"}}),
+      h("div",{style:{position:"relative"}},
+        h("div",{style:{display:"flex",alignItems:"center",gap:10,marginBottom:8,flexWrap:"wrap"}},
+          h("span",{style:{fontSize:24}},pt.icon),
+          h("div",null,
+            h("div",{style:{fontSize:11,color:"rgba(255,255,255,.5)"}},pt.ar+" · "+project.location),
+            h("h2",{style:{margin:0,fontSize:20,fontWeight:900}},project.name)
+          ),
+          alerts.length>0&&h("div",{style:{marginRight:"auto",background:"#dc2626",borderRadius:20,padding:"3px 12px",fontSize:12,fontWeight:700}},"⚠️ "+alerts.length+" تنبيه")
+        ),
+        h("div",{style:{display:"flex",gap:16,flexWrap:"wrap",marginBottom:14}},
+          [["الميزانية",fmt(project.budget)+" ر.ع","#60a5fa"],["المصروف",fmt(project.spent)+" ر.ع","#34d399"],["المتبقي",fmt(Number(project.budget||0)-Number(project.spent||0))+" ر.ع","#fbbf24"],["نسبة الصرف",sp+"%",sp>90?"#f87171":"#60a5fa"]].map(([l,v,c])=>h("div",{key:l},h("div",{style:{fontSize:10,color:"rgba(255,255,255,.5)"}},l),h("div",{style:{fontSize:17,fontWeight:800,color:c}},v)))
+        ),
+        h("div",{style:{marginTop:4}},
+          h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:11,color:"rgba(255,255,255,.5)",marginBottom:4}},h("span","الإنجاز الكلي"),h("span",{style:{fontWeight:800,color:"#fff"}},avgP+"%")),
+          h("div",{style:{background:"rgba(255,255,255,.15)",borderRadius:10,height:8}},h("div",{style:{width:avgP+"%",background:avgP>=100?"#34d399":avgP>=60?"#60a5fa":"#fbbf24",height:"100%",borderRadius:10,transition:"width .8s"}}))
+        )
+      )
+    ),
+    /* stats */
+    h("div",{style:{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap"}},
+      [["المراحل",ps.length,"🗂","#0F2044"],["مكتملة",ps.filter(s=>s.status==="completed").length,"✅","#16a34a"],["متأخرة",ps.filter(s=>s.status==="delayed").length,"⚠️","#dc2626"],["المهام",allTasks.length,"📌","#7c3aed"],["منجزة",doneTasks,"✔","#16a34a"],["KPI",(project.kpis||[]).length,"📊","#ea580c"]].map(([l,v,icon,c])=>h("div",{key:l,style:{background:"#fff",borderRadius:12,padding:"10px 14px",flex:1,minWidth:60,textAlign:"center",boxShadow:"0 2px 10px rgba(0,0,0,.06)"}},h("div",{style:{fontSize:18}},icon),h("div",{style:{fontSize:20,fontWeight:900,color:c,lineHeight:1.1}},v),h("div",{style:{fontSize:10,color:"#64748b",marginTop:2}},l)))
+    ),
+    /* tabs */
+    h("div",{style:{background:"#fff",borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,.07)"}},
+      h("div",{style:{display:"flex",borderBottom:"1px solid #e2e8f0",padding:"0 8px",overflowX:"auto"}},
+        ["overview","stages","kpis","team","alerts"].map((v,i)=>h(Tab,{key:v,label:["نظرة عامة","المراحل والمهام","مؤشرات KPI","الفريق","التنبيهات"+(alerts.length>0?" ("+alerts.length+")":"")][i],active:tab===v,onClick:()=>setTab(v)}))
+      ),
+      h("div",{style:{padding:"20px 24px"}},
+        /* OVERVIEW */
+        tab==="overview"&&h("div",{style:{display:"flex",gap:20,flexWrap:"wrap"}},
+          h("div",{style:{flex:"1 1 200px",textAlign:"center"}},
+            h("div",{style:{fontWeight:800,color:"#0F2044",marginBottom:14,fontSize:14}},"الإنجاز الكلي"),
+            h("div",{style:{display:"flex",justifyContent:"center",marginBottom:12}},h(Ring,{p:avgP,sz:110,clr:avgP>=100?"#16a34a":avgP>=60?"#0284c7":"#f59e0b"})),
+            h("div",{style:{display:"flex",justifyContent:"space-around"}},
+              [["المالي",sp,"#16a34a"],["المراحل",ps.length?Math.round(ps.filter(s=>s.status==="completed").length/ps.length*100):0,"#0284c7"],["المهام",allTasks.length?Math.round(doneTasks/allTasks.length*100):0,"#7c3aed"]].map(([l,v,c])=>h("div",{key:l,style:{textAlign:"center"}},h(Ring,{p:v,sz:60,clr:c}),h("div",{style:{fontSize:10,color:"#64748b",marginTop:3}},l)))
+            )
+          ),
+          h("div",{style:{flex:"1 1 260px"}},
+            h("div",{style:{fontWeight:800,color:"#0F2044",marginBottom:12,fontSize:14}},"تقدم المراحل"),
+            ps.length===0?h("div",{style:{color:"#94a3b8",textAlign:"center",padding:"20px 0"}},"لا توجد مراحل بعد"):
+            ps.map(s=>h("div",{key:s.id,style:{marginBottom:10}},
+              h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}},
+                h("div",{style:{fontSize:12,fontWeight:700,color:"#374151",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},s.name),
+                h("div",{style:{display:"flex",alignItems:"center",gap:6,flexShrink:0}},h(Badge,{v:s.status}),h("span",{style:{fontSize:11,fontWeight:700,color:"#0284c7"}},(s.completionPct||0)+"%"))
+              ),
+              h(Bar,{p:s.completionPct||0})
+            ))
+          )
+        ),
+        /* STAGES */
+        tab==="stages"&&h("div",null,
+          ps.length===0?h("div",{style:{textAlign:"center",padding:"32px 0",color:"#94a3b8"}},h("div",{style:{fontSize:40,marginBottom:8}},"🗂"),"لا توجد مراحل بعد"):
           ps.map(s=>{
-            const sExpanded=expandedStage===s.id;
+            const isExp=exp===s.id;
             const sTasks=s.tasks||[];
-            const doneST=sTasks.filter(t=>t.status==="done").length;
-            const rd=ROLES[s.responsibleRole]||{ar:s.responsibleRole,clr:"#666"};
-            return <div key={s.id} style={{border:"1px solid #e2e8f0",borderRadius:12,marginBottom:10,overflow:"hidden"}}>
-              <div className="row-hover" onClick={()=>setExpandedStage(sExpanded?null:s.id)} style={{padding:"13px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",background:sExpanded?"#f0f7ff":"#fff",gap:10}}>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-                    <span style={{fontSize:14,fontWeight:800,color:"#0F2044"}}>{s.name}</span>
-                    <Badge v={s.status}/>
-                    {sTasks.length>0&&<span style={{fontSize:11,color:"#7c3aed",background:"#f5f3ff",padding:"1px 8px",borderRadius:10,fontWeight:700}}>📌 {doneST}/{sTasks.length}</span>}
-                  </div>
-                  <div style={{fontSize:11,color:"#64748b"}}>{s.startDate&&`${s.startDate}`}{s.endDate&&` → ${s.endDate}`} · <span style={{color:rd.clr,fontWeight:700}}>{rd.ar}</span></div>
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-                  <div style={{textAlign:"center",width:50}}><div style={{fontSize:13,fontWeight:800,color:"#0284c7"}}>{s.completionPct||0}%</div><Bar p={s.completionPct||0} h={5}/></div>
-                  <div style={{display:"flex",gap:4}}>
-                    <Btn sm color="#f1f5f9" tc="#374151" onClick={e=>{e.stopPropagation();onEditStage(s);}}>✏️</Btn>
-                    <Btn sm color="#fee2e2" tc="#b91c1c" onClick={e=>{e.stopPropagation();onDelStage(s.id);}}>🗑</Btn>
-                  </div>
-                  <span style={{color:"#94a3b8",fontSize:16}}>{sExpanded?"▲":"▼"}</span>
-                </div>
-              </div>
-              {sExpanded&&<div style={{padding:"12px 16px",background:"#f9fafb",borderTop:"1px solid #e2e8f0"}}>
-                {s.notes&&<div style={{fontSize:12,color:"#64748b",marginBottom:10,padding:"8px 12px",background:"#fff",borderRadius:8,borderRight:"3px solid #d1d5db"}}>💬 {s.notes}</div>}
-                {sTasks.length===0?<div style={{fontSize:12,color:"#94a3b8",textAlign:"center",padding:"10px 0"}}>لا توجد مهام فرعية في هذه المرحلة</div>:
-                <div>
-                  <div style={{fontSize:12,fontWeight:700,color:"#374151",marginBottom:8}}>المهام الفرعية:</div>
-                  {sTasks.map(t=>{
-                    const tr=ROLES[t.assignedRole]||{ar:t.assignedRole,clr:"#666"};
-                    return <div key={t.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:"#fff",borderRadius:8,marginBottom:5,border:"1px solid #e2e8f0"}}>
-                      <TBadge v={t.status}/>
-                      <span style={{flex:1,fontSize:12,fontWeight:600,color:"#1e293b"}}>{t.priority==="high"?"🔴 ":t.priority==="low"?"🟢 ":"🟡 "}{t.title}</span>
-                      <span style={{fontSize:11,color:tr.clr,background:`${tr.clr}15`,padding:"1px 8px",borderRadius:10,fontWeight:700}}>{tr.ar}</span>
-                      {t.dueDate&&<span style={{fontSize:10,color:isOverdue(t.dueDate)&&t.status!=="done"?"#dc2626":"#94a3b8"}}>📅 {t.dueDate}</span>}
-                    </div>;
-                  })}
-                </div>}
-              </div>}
-            </div>;
-          })}
-        </div>}
-
-        {/* KPIs TAB */}
-        {tab==="kpis"&&<div>
-          {(!project.kpis||project.kpis.length===0)?
-          <div style={{textAlign:"center",padding:"32px 0",color:"#94a3b8"}}><div style={{fontSize:40,marginBottom:8}}>📊</div><div style={{fontWeight:700,marginBottom:4}}>لا توجد مؤشرات أداء</div><div style={{fontSize:12}}>أضف KPIs عند تعديل المشروع</div><Btn onClick={()=>onEditProject(project)} style={{marginTop:12}} color="#1B8B8E">+ إضافة مؤشرات أداء</Btn></div>:
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14}}>
-            {project.kpis.map(k=><KPIGauge key={k.id} kpi={k}/>)}
-          </div>}
-        </div>}
-
-        {/* TEAM TAB */}
-        {tab==="team"&&<div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:12}}>
-            {Object.entries(ROLES).map(([role,rd])=>{
-              const c=project[role]||{};
-              return <div key={role} style={{background:"#f8fafc",borderRadius:12,padding:"14px 16px",flex:"1 1 200px",borderRight:`3px solid ${rd.clr}`}}>
-                <div style={{fontSize:11,fontWeight:700,color:rd.clr,marginBottom:6}}>{rd.ar} / {rd.en}</div>
-                {c.name?<>
-                  <div style={{fontSize:15,fontWeight:800,color:"#0F2044"}}>{c.name}</div>
-                  {c.phone&&<div style={{fontSize:12,color:"#64748b",marginTop:4}}>📞 {c.phone}</div>}
-                  {c.email&&<div style={{fontSize:12,color:"#64748b"}}>✉ {c.email}</div>}
-                </>:<div style={{fontSize:12,color:"#94a3b8",fontStyle:"italic"}}>غير محدد</div>}
-              </div>;
-            })}
-          </div>
-        </div>}
-
-        {/* ALERTS TAB */}
-        {tab==="alerts"&&<AlertPanel alerts={alerts}/>}
-      </div>
-    </div>
-  </div>;
+            const doneT=sTasks.filter(t=>t.status==="done").length;
+            const rd=ROLES[s.responsibleRole]||{ar:s.responsibleRole,c:"#666"};
+            return h("div",{key:s.id,style:{border:"1px solid #e2e8f0",borderRadius:12,marginBottom:10,overflow:"hidden"}},
+              h("div",{className:"rh",onClick:()=>setExp(isExp?null:s.id),style:{padding:"13px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",background:isExp?"#f0f7ff":"#fff",gap:10,cursor:"pointer"}},
+                h("div",{style:{flex:1,minWidth:0}},
+                  h("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}},
+                    h("span",{style:{fontSize:14,fontWeight:800,color:"#0F2044"}},s.name),
+                    h(Badge,{v:s.status}),
+                    sTasks.length>0&&h("span",{style:{fontSize:11,color:"#7c3aed",background:"#f5f3ff",padding:"1px 8px",borderRadius:10,fontWeight:700}},"📌 "+doneT+"/"+sTasks.length)
+                  ),
+                  h("div",{style:{fontSize:11,color:"#64748b"}},(s.startDate||"-")+" → "+(s.endDate||"-")+" · ",h("span",{style:{color:rd.c,fontWeight:700}},rd.ar))
+                ),
+                h("div",{style:{display:"flex",alignItems:"center",gap:10,flexShrink:0}},
+                  h("div",{style:{textAlign:"center",width:50}},h("div",{style:{fontSize:13,fontWeight:800,color:"#0284c7"}},(s.completionPct||0)+"%"),h(Bar,{p:s.completionPct||0,h:5})),
+                  h("div",{style:{display:"flex",gap:4}},
+                    h(Btn,{ch:"✏️",sm:true,clr:"#f1f5f9",tc:"#374151",onClick:e=>{e.stopPropagation();onEditStage(s);}}),
+                    h(Btn,{ch:"🗑",sm:true,clr:"#fee2e2",tc:"#b91c1c",onClick:e=>{e.stopPropagation();onDelStage(s.id);}})
+                  ),
+                  h("span",{style:{color:"#94a3b8",fontSize:14}},isExp?"▲":"▼")
+                )
+              ),
+              isExp&&h("div",{style:{padding:"12px 16px",background:"#f9fafb",borderTop:"1px solid #e2e8f0"}},
+                s.notes&&h("div",{style:{fontSize:12,color:"#64748b",marginBottom:10,padding:"8px 12px",background:"#fff",borderRadius:8,borderRight:"3px solid #d1d5db"}},"💬 "+s.notes),
+                sTasks.length===0?h("div",{style:{fontSize:12,color:"#94a3b8",textAlign:"center",padding:"10px 0"}},"لا توجد مهام فرعية"):
+                h("div",null,
+                  h("div",{style:{fontSize:12,fontWeight:700,color:"#374151",marginBottom:8}},"المهام الفرعية:"),
+                  sTasks.map(t=>{const tr=ROLES[t.assignedRole]||{ar:t.assignedRole,c:"#666"};const od=overdue(t.dueDate)&&t.status!=="done";return h("div",{key:t.id,style:{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:"#fff",borderRadius:8,marginBottom:5,border:"1px solid "+(od?"#fecaca":"#e2e8f0")}},
+                    h(TBadge,{v:t.status}),
+                    h("span",{style:{flex:1,fontSize:12,fontWeight:600,color:"#1e293b"}},(t.priority==="high"?"🔴 ":t.priority==="low"?"🟢 ":"🟡 ")+t.title),
+                    h("span",{style:{fontSize:11,color:tr.c,background:tr.c+"18",padding:"1px 8px",borderRadius:10,fontWeight:700}},tr.ar),
+                    t.dueDate&&h("span",{style:{fontSize:10,color:od?"#dc2626":"#94a3b8"}},"📅 "+t.dueDate)
+                  );})
+                )
+              )
+            );
+          })
+        ),
+        /* KPIs */
+        tab==="kpis"&&h("div",null,
+          (!project.kpis||project.kpis.length===0)?h("div",{style:{textAlign:"center",padding:"32px 0",color:"#94a3b8"}},h("div",{style:{fontSize:40,marginBottom:8}},"📊"),h("div",{style:{fontWeight:700,marginBottom:12}},"لا توجد مؤشرات أداء"),h(Btn,{ch:"+ إضافة مؤشرات",onClick:()=>onEditProj(project),clr:"#1B8B8E"})):
+          h("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14}},
+            project.kpis.map(k=>h(KPIGauge,{key:k.id,kpi:k}))
+          )
+        ),
+        /* TEAM */
+        tab==="team"&&h("div",{style:{display:"flex",flexWrap:"wrap",gap:12}},
+          Object.entries(ROLES).map(([role,rd])=>{const c=project[role]||{};return h("div",{key:role,style:{background:"#f8fafc",borderRadius:12,padding:"14px 16px",flex:"1 1 200px",borderRight:"3px solid "+rd.c}},
+            h("div",{style:{fontSize:11,fontWeight:700,color:rd.c,marginBottom:6}},rd.ar),
+            c.name?h("div",null,h("div",{style:{fontSize:15,fontWeight:800,color:"#0F2044"}},c.name),c.phone&&h("div",{style:{fontSize:12,color:"#64748b",marginTop:4}},"📞 "+c.phone),c.email&&h("div",{style:{fontSize:12,color:"#64748b"}},"✉ "+c.email)):
+            h("div",{style:{fontSize:12,color:"#94a3b8",fontStyle:"italic"}},"غير محدد")
+          );})
+        ),
+        /* ALERTS */
+        tab==="alerts"&&h("div",null,
+          alerts.length===0?h("div",{style:{textAlign:"center",padding:"28px 0",color:"#94a3b8"}},h("div",{style:{fontSize:36,marginBottom:8}},"✅"),"لا توجد تنبيهات"):
+          alerts.map((a,i)=>h("div",{key:i,style:{display:"flex",alignItems:"flex-start",gap:12,padding:"11px 14px",borderRadius:10,marginBottom:8,background:a.sev==="d"?"#fff5f5":"#fffbeb",borderRight:"3px solid "+(a.sev==="d"?"#dc2626":"#f59e0b")}},
+            h("span",{style:{fontSize:20}},a.icon),
+            h("div",{style:{fontSize:13,fontWeight:700,color:a.sev==="d"?"#b91c1c":"#92400e"}},a.msg)
+          ))
+        )
+      )
+    )
+  );
 }
 
-/* ═══════════════ PROJECTS LIST ═══════════════ */
+/* ── PROJECTS LIST ── */
 function ProjList({projects,stages,onAdd,onEdit,onSelect,onDel}){
   const[search,setSearch]=useState("");
-  const[filterType,setFilterType]=useState("all");
-  const filtered=projects.filter(p=>(filterType==="all"||p.type===filterType)&&(p.name||"").includes(search));
-  return <div className="fade-in">
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18,flexWrap:"wrap",gap:10}}>
-      <div><h2 style={{color:"#0F2044",margin:0,fontSize:22,fontWeight:900}}>المشاريع / Projects</h2><div style={{fontSize:12,color:"#64748b",marginTop:2}}>{projects.length} مشروع مسجل</div></div>
-      <Btn onClick={onAdd} color="#1B8B8E">+ إضافة مشروع</Btn>
-    </div>
-    {projects.length>0&&<div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
-      <input style={{...INP,maxWidth:220,fontSize:13}} value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 بحث..."/>
-      <select style={{...INP,width:"auto",fontSize:12}} value={filterType} onChange={e=>setFilterType(e.target.value)}>
-        <option value="all">جميع الأنواع</option>
-        {PROJ_TYPES.map(t=><option key={t.v} value={t.v}>{t.icon} {t.ar}</option>)}
-      </select>
-    </div>}
-    {filtered.length===0?<div style={{background:"#fff",borderRadius:14,padding:56,textAlign:"center",color:"#94a3b8"}}><div style={{fontSize:52,marginBottom:12}}>🏗</div><div style={{fontSize:16,fontWeight:700,color:"#64748b",marginBottom:6}}>لا توجد مشاريع</div></div>:
-    <div style={{display:"flex",flexDirection:"column",gap:12}}>
-      {filtered.map(p=>{
+  const[ftype,setFtype]=useState("all");
+  const filtered=projects.filter(p=>(ftype==="all"||p.type===ftype)&&(p.name||"").includes(search));
+  return h("div",{className:"fi"},
+    h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18,flexWrap:"wrap",gap:10}},
+      h("div",null,h("h2",{style:{color:"#0F2044",margin:0,fontSize:22,fontWeight:900}},"المشاريع / Projects"),h("div",{style:{fontSize:12,color:"#64748b",marginTop:2}},projects.length+" مشروع مسجل")),
+      h(Btn,{ch:"+ إضافة مشروع",clr:"#1B8B8E",onClick:onAdd})
+    ),
+    projects.length>0&&h("div",{style:{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap"}},
+      h("input",{style:{...INP,maxWidth:220,fontSize:13},value:search,onChange:e=>setSearch(e.target.value),placeholder:"🔍 بحث..."}),
+      h("select",{style:{...INP,width:"auto",fontSize:12},value:ftype,onChange:e=>setFtype(e.target.value)},
+        h("option",{value:"all"},"جميع الأنواع"),
+        PTYPES.map(t=>h("option",{key:t.v,value:t.v},t.icon+" "+t.ar))
+      )
+    ),
+    filtered.length===0?h("div",{style:{background:"#fff",borderRadius:14,padding:56,textAlign:"center",color:"#94a3b8"}},h("div",{style:{fontSize:52,marginBottom:12}},"🏗"),h("div",{style:{fontSize:16,fontWeight:700,color:"#64748b"}},"لا توجد مشاريع")):
+    h("div",{style:{display:"flex",flexDirection:"column",gap:12}},
+      filtered.map(p=>{
         const ps=stages.filter(s=>s.projectId===p.id);
         const avgP=ps.length?Math.round(ps.reduce((a,s)=>a+(s.completionPct||0),0)/ps.length):0;
-        const allTasks=ps.flatMap(s=>s.tasks||[]);
-        const hasD=ps.some(s=>s.status==="delayed");
-        const alerts=getAlerts(p,ps);
-        const pt=getPT(p.type);
-        return <div key={p.id} style={{background:"#fff",borderRadius:14,boxShadow:"0 2px 10px rgba(0,0,0,.06)",padding:"16px 20px",cursor:"pointer",borderRight:`4px solid ${pt.clr}`}} onClick={()=>onSelect(p)}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12}}>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
-                <span style={{fontSize:18}}>{pt.icon}</span>
-                <span style={{fontSize:17,fontWeight:900,color:"#0F2044"}}>{p.name||"بدون اسم"}</span>
-                <span style={{fontSize:11,color:pt.clr,background:`${pt.clr}15`,padding:"1px 8px",borderRadius:10,fontWeight:700}}>{pt.ar}</span>
-                {alerts.length>0&&<span style={{fontSize:11,color:"#dc2626",background:"#fee2e2",padding:"1px 8px",borderRadius:10,fontWeight:700}}>⚠️ {alerts.length}</span>}
-              </div>
-              <div style={{fontSize:12,color:"#64748b"}}>📍 {p.location||"-"} · 🏗 {p.contractor||"-"} · ⏱ {p.durationMonths||"-"} شهر</div>
-              <div style={{display:"flex",gap:12,marginTop:6,fontSize:11,color:"#94a3b8"}}>
-                <span>📊 {ps.length} مرحلة</span>
-                <span>📌 {allTasks.length} مهمة</span>
-                <span>🎯 {(p.kpis||[]).length} مؤشر KPI</span>
-              </div>
-            </div>
-            <div style={{textAlign:"center",background:"#f8fafc",borderRadius:10,padding:"10px 16px",flexShrink:0}}>
-              <div style={{fontSize:10,color:"#64748b"}}>الميزانية</div>
-              <div style={{fontSize:17,fontWeight:800,color:"#0F2044"}}>{fmt(p.budget)}</div>
-              <div style={{fontSize:10,color:pct(p.spent,p.budget)>90?"#dc2626":"#94a3b8"}}>ر.ع · صُرف: {pct(p.spent,p.budget)}%</div>
-            </div>
-          </div>
-          <div style={{marginTop:12}}><Bar p={avgP}/></div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:10}}>
-            <div style={{fontSize:11,color:"#94a3b8"}}>اضغط لفتح لوحة التحكم الكاملة</div>
-            <div style={{display:"flex",gap:6}}>
-              <Btn sm color="#f1f5f9" tc="#374151" onClick={e=>{e.stopPropagation();onEdit(p);}}>✏️</Btn>
-              <Btn sm color="#fee2e2" tc="#b91c1c" onClick={e=>{e.stopPropagation();onDel(p.id);}}>🗑</Btn>
-            </div>
-          </div>
-        </div>;
-      })}
-    </div>}
-  </div>;
+        const allT=ps.flatMap(s=>s.tasks||[]);
+        const al=getAlerts(p,ps);
+        const pt=gpt(p.type);
+        return h("div",{key:p.id,style:{background:"#fff",borderRadius:14,boxShadow:"0 2px 10px rgba(0,0,0,.06)",padding:"16px 20px",cursor:"pointer",borderRight:"4px solid "+pt.c},onClick:()=>onSelect(p)},
+          h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12}},
+            h("div",{style:{flex:1,minWidth:0}},
+              h("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}},
+                h("span",{style:{fontSize:18}},pt.icon),
+                h("span",{style:{fontSize:17,fontWeight:900,color:"#0F2044"}},p.name||"بدون اسم"),
+                h("span",{style:{fontSize:11,color:pt.c,background:pt.c+"18",padding:"1px 8px",borderRadius:10,fontWeight:700}},pt.ar),
+                al.length>0&&h("span",{style:{fontSize:11,color:"#dc2626",background:"#fee2e2",padding:"1px 8px",borderRadius:10,fontWeight:700}},"⚠️ "+al.length)
+              ),
+              h("div",{style:{fontSize:12,color:"#64748b"}},"📍 "+(p.location||"-")+" · 🏗 "+(p.contractor||"-")+" · ⏱ "+(p.durationMonths||"-")+" شهر"),
+              h("div",{style:{display:"flex",gap:12,marginTop:6,fontSize:11,color:"#94a3b8"}},
+                h("span","📊 "+ps.length+" مرحلة"),h("span","📌 "+allT.length+" مهمة"),h("span","🎯 "+((p.kpis||[]).length)+" KPI")
+              )
+            ),
+            h("div",{style:{textAlign:"center",background:"#f8fafc",borderRadius:10,padding:"10px 16px",flexShrink:0}},
+              h("div",{style:{fontSize:10,color:"#64748b"}},"الميزانية"),
+              h("div",{style:{fontSize:17,fontWeight:800,color:"#0F2044"}},fmt(p.budget)),
+              h("div",{style:{fontSize:10,color:pct(p.spent,p.budget)>90?"#dc2626":"#94a3b8"}},"ر.ع · صُرف: "+pct(p.spent,p.budget)+"%")
+            )
+          ),
+          h("div",{style:{marginTop:12}},h(Bar,{p:avgP})),
+          h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:10}},
+            h("div",{style:{fontSize:11,color:"#94a3b8"}},"اضغط لفتح لوحة التحكم"),
+            h("div",{style:{display:"flex",gap:6}},
+              h(Btn,{ch:"✏️",sm:true,clr:"#f1f5f9",tc:"#374151",onClick:e=>{e.stopPropagation();onEdit(p);}}),
+              h(Btn,{ch:"🗑",sm:true,clr:"#fee2e2",tc:"#b91c1c",onClick:e=>{e.stopPropagation();onDel(p.id);}})
+            )
+          )
+        );
+      })
+    )
+  );
 }
 
-/* ═══════════════ GLOBAL DASHBOARD ═══════════════ */
-function GlobalDashboard({projects,stages}){
+/* ── GLOBAL DASHBOARD ── */
+function GlobDash({projects,stages}){
   const totB=projects.reduce((a,p)=>a+Number(p.budget||0),0);
   const totS=projects.reduce((a,p)=>a+Number(p.spent||0),0);
   const avgC=stages.length?Math.round(stages.reduce((a,s)=>a+(s.completionPct||0),0)/stages.length):0;
   const allTasks=stages.flatMap(s=>s.tasks||[]);
-  const delayedStages=stages.filter(s=>s.status==="delayed"||isOverdue(s.endDate)&&s.status!=="completed").length;
-  const doneProjs=projects.filter(p=>{const ps=stages.filter(s=>s.projectId===p.id);return ps.length>0&&ps.every(s=>s.status==="completed");}).length;
+  const delayed=stages.filter(s=>s.status==="delayed"||overdue(s.endDate)&&s.status!=="completed").length;
+  const doneP=projects.filter(p=>{const ps=stages.filter(s=>s.projectId===p.id);return ps.length>0&&ps.every(s=>s.status==="completed");}).length;
   const allAlerts=projects.flatMap(p=>getAlerts(p,stages.filter(s=>s.projectId===p.id)));
-  return <div className="fade-in">
-    <div style={{marginBottom:22}}><h2 style={{color:"#0F2044",fontSize:22,fontWeight:900,marginBottom:4}}>لوحة المؤشرات الرئيسية / KPI Dashboard</h2><div style={{fontSize:13,color:"#64748b"}}>نظرة شاملة على جميع المشاريع</div></div>
-    <div style={{display:"flex",gap:13,flexWrap:"wrap",marginBottom:20}}>
-      {[["المشاريع",projects.length,"🏗","#0F2044","Total Projects"],["متوسط الإنجاز",`${avgC}%`,"📈","#0284c7","Avg. Completion"],["نسبة الصرف",`${pct(totS,totB)}%`,"💰","#16a34a",`${fmt(totS)} / ${fmt(totB)} ر.ع`],["مراحل متأخرة",delayedStages,"⚠️","#dc2626","Delayed Stages"],["إجمالي المهام",allTasks.length,"📌","#7c3aed","Total Tasks"],["مشاريع مكتملة",doneProjs,"✅","#16a34a","Completed"],["التنبيهات",allAlerts.length,"🔔",allAlerts.length>0?"#dc2626":"#16a34a","Active Alerts"]].map(([ar,val,icon,color,sub])=>(
-        <div key={ar} style={{background:"#fff",borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,.07)",padding:"16px 20px",borderTop:`4px solid ${color}`,flex:1,minWidth:110}}>
-          <div style={{fontSize:22,marginBottom:4}}>{icon}</div>
-          <div style={{fontSize:10,color:"#64748b",lineHeight:1.5}}>{ar}</div>
-          <div style={{fontSize:26,fontWeight:900,color,margin:"4px 0 2px",lineHeight:1}}>{val}</div>
-          {sub&&<div style={{fontSize:10,color:"#94a3b8"}}>{sub}</div>}
-        </div>
-      ))}
-    </div>
-
-    {/* By Type */}
-    <div style={{display:"flex",gap:14,flexWrap:"wrap",marginBottom:16}}>
-      <Card style={{flex:"1 1 280px"}}>
-        <div style={{fontWeight:800,color:"#0F2044",marginBottom:14,fontSize:14}}>توزيع المشاريع حسب النوع</div>
-        {PROJ_TYPES.map(t=>{const c=projects.filter(p=>p.type===t.v).length;return c>0?<div key={t.v} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-          <span style={{fontSize:18,width:28}}>{t.icon}</span>
-          <div style={{flex:1}}><div style={{display:"flex",justifyContent:"space-between",fontSize:12,fontWeight:700,marginBottom:3}}><span style={{color:t.clr}}>{t.ar}</span><span style={{color:"#0F2044"}}>{c}</span></div><Bar p={pct(c,projects.length)} color={t.clr}/></div>
-        </div>:null;})}
-      </Card>
-      <Card style={{flex:"1 1 280px"}}>
-        <div style={{fontWeight:800,color:"#0F2044",marginBottom:14,fontSize:14}}>التنبيهات / Active Alerts</div>
-        {allAlerts.length===0?<div style={{textAlign:"center",padding:"20px 0",color:"#94a3b8"}}><div style={{fontSize:32}}>✅</div><div style={{marginTop:4}}>لا توجد تنبيهات</div></div>:
-        allAlerts.slice(0,6).map((a,i)=>(
-          <div key={i} style={{display:"flex",gap:8,padding:"7px 10px",borderRadius:8,marginBottom:5,background:a.sev==="danger"?"#fff5f5":"#fffbeb",borderRight:`2px solid ${a.sev==="danger"?"#dc2626":"#f59e0b"}`}}>
-            <span style={{fontSize:16}}>{a.icon}</span>
-            <span style={{fontSize:12,color:a.sev==="danger"?"#b91c1c":"#92400e",fontWeight:600}}>{a.msg}</span>
-          </div>
-        ))}
-      </Card>
-    </div>
-
-    {/* Projects Summary Table */}
-    <Card>
-      <div style={{fontWeight:800,color:"#0F2044",margin:"0 0 16px",fontSize:14}}>ملخص المشاريع / Projects Summary</div>
-      {projects.length===0?<div style={{textAlign:"center",padding:40,color:"#94a3b8"}}><div style={{fontSize:40,marginBottom:10}}>📋</div><div>لا توجد مشاريع بعد</div></div>:
-      <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-        <thead><tr style={{background:"#f8fafc",borderBottom:"2px solid #e2e8f0"}}>{["#","النوع","المشروع","الموقع","الميزانية","الصرف%","الإنجاز","المراحل","التنبيهات"].map(h=><th key={h} style={{padding:"9px 10px",textAlign:"right",fontSize:11,color:"#374151",fontWeight:700,whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
-        <tbody>{projects.map((p,i)=>{
+  return h("div",{className:"fi"},
+    h("div",{style:{marginBottom:20}},h("h2",{style:{color:"#0F2044",fontSize:22,fontWeight:900,marginBottom:4}},"لوحة المؤشرات / KPI Dashboard"),h("div",{style:{fontSize:13,color:"#64748b"}},"نظرة شاملة على جميع المشاريع")),
+    h("div",{style:{display:"flex",gap:12,flexWrap:"wrap",marginBottom:18}},
+      [["المشاريع",projects.length,"🏗","#0F2044"],["متوسط الإنجاز",avgC+"%","📈","#0284c7"],["نسبة الصرف",pct(totS,totB)+"%","💰","#16a34a"],["متأخرة",delayed,"⚠️","#dc2626"],["المهام الكلية",allTasks.length,"📌","#7c3aed"],["مشاريع مكتملة",doneP,"✅","#16a34a"],["التنبيهات",allAlerts.length,"🔔",allAlerts.length>0?"#dc2626":"#16a34a"]].map(([l,v,icon,c])=>h("div",{key:l,style:{background:"#fff",borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,.07)",padding:"16px 18px",borderTop:"4px solid "+c,flex:1,minWidth:90,textAlign:"center"}},h("div",{style:{fontSize:22,marginBottom:4}},icon),h("div",{style:{fontSize:10,color:"#64748b"}},l),h("div",{style:{fontSize:24,fontWeight:900,color:c,lineHeight:1.1}},v)))
+    ),
+    h("div",{style:{display:"flex",gap:14,flexWrap:"wrap",marginBottom:14}},
+      h(Card,{style:{flex:"1 1 260px"},ch:h("div",null,
+        h("div",{style:{fontWeight:800,color:"#0F2044",marginBottom:12,fontSize:14}},"توزيع المشاريع حسب النوع"),
+        PTYPES.map(t=>{const c=projects.filter(p=>p.type===t.v).length;return c>0?h("div",{key:t.v,style:{display:"flex",alignItems:"center",gap:10,marginBottom:10}},h("span",{style:{fontSize:18,width:28}},t.icon),h("div",{style:{flex:1}},h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:12,fontWeight:700,marginBottom:3}},h("span",{style:{color:t.c}},t.ar),h("span",{style:{color:"#0F2044"}},c)),h(Bar,{p:pct(c,projects.length),clr:t.c}))):null;})
+      )}),
+      h(Card,{style:{flex:"1 1 260px"},ch:h("div",null,
+        h("div",{style:{fontWeight:800,color:"#0F2044",marginBottom:12,fontSize:14}},"التنبيهات النشطة"),
+        allAlerts.length===0?h("div",{style:{textAlign:"center",padding:"18px 0",color:"#94a3b8"}},h("div",{style:{fontSize:32}},"✅"),"لا توجد تنبيهات"):
+        allAlerts.slice(0,6).map((a,i)=>h("div",{key:i,style:{display:"flex",gap:8,padding:"7px 10px",borderRadius:8,marginBottom:5,background:a.sev==="d"?"#fff5f5":"#fffbeb",borderRight:"2px solid "+(a.sev==="d"?"#dc2626":"#f59e0b")}},h("span",{style:{fontSize:16}},a.icon),h("span",{style:{fontSize:12,color:a.sev==="d"?"#b91c1c":"#92400e",fontWeight:600}},a.msg)))
+      )})
+    ),
+    h(Card,{ch:h("div",null,
+      h("div",{style:{fontWeight:800,color:"#0F2044",marginBottom:14,fontSize:14}},"ملخص المشاريع"),
+      projects.length===0?h("div",{style:{textAlign:"center",padding:40,color:"#94a3b8"}},h("div",{style:{fontSize:40,marginBottom:10}},"📋"),"لا توجد مشاريع بعد"):
+      h("div",{style:{overflowX:"auto"}},h("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:13}},
+        h("thead",null,h("tr",{style:{background:"#f8fafc",borderBottom:"2px solid #e2e8f0"}},
+          ["#","النوع","المشروع","الموقع","الميزانية","الصرف%","الإنجاز","تنبيهات"].map(hd=>h("th",{key:hd,style:{padding:"9px 10px",textAlign:"right",fontSize:11,color:"#374151",fontWeight:700,whiteSpace:"nowrap"}},hd))
+        )),
+        h("tbody",null,projects.map((p,i)=>{
           const ps=stages.filter(s=>s.projectId===p.id);
-          const avgP=ps.length?Math.round(ps.reduce((a,s)=>a+(s.completionPct||0),0)/ps.length):0;
-          const pal=getAlerts(p,ps);
-          const pt=getPT(p.type);
-          return <tr key={p.id} style={{borderBottom:"1px solid #f1f5f9"}}>
-            <td style={{padding:"9px 10px",color:"#94a3b8",fontSize:11}}>{i+1}</td>
-            <td style={{padding:"9px 10px"}}><span style={{fontSize:18}}>{pt.icon}</span></td>
-            <td style={{padding:"9px 10px",fontWeight:700,color:"#0F2044"}}>{p.name||"-"}</td>
-            <td style={{padding:"9px 10px",color:"#64748b"}}>{p.location||"-"}</td>
-            <td style={{padding:"9px 10px",fontWeight:600}}>{fmt(p.budget)} ر.ع</td>
-            <td style={{padding:"9px 10px",fontWeight:700,color:pct(p.spent,p.budget)>90?"#dc2626":"#16a34a"}}>{pct(p.spent,p.budget)}%</td>
-            <td style={{padding:"9px 10px",minWidth:90}}><div style={{fontSize:11,fontWeight:700,color:"#0284c7",marginBottom:2}}>{avgP}%</div><Bar p={avgP} h={5}/></td>
-            <td style={{padding:"9px 10px",textAlign:"center",fontSize:12,fontWeight:700,color:"#64748b"}}>{ps.length}</td>
-            <td style={{padding:"9px 10px"}}>{pal.length>0?<span style={{background:"#fee2e2",color:"#dc2626",padding:"2px 8px",borderRadius:10,fontSize:11,fontWeight:700}}>⚠️ {pal.length}</span>:<span style={{color:"#16a34a",fontSize:12}}>✅</span>}</td>
-          </tr>;
-        })}</tbody>
-      </table></div>}
-    </Card>
-  </div>;
+          const aP=ps.length?Math.round(ps.reduce((a,s)=>a+(s.completionPct||0),0)/ps.length):0;
+          const al=getAlerts(p,ps);
+          const pt=gpt(p.type);
+          return h("tr",{key:p.id,style:{borderBottom:"1px solid #f1f5f9"}},
+            h("td",{style:{padding:"9px 10px",color:"#94a3b8",fontSize:11}},i+1),
+            h("td",{style:{padding:"9px 10px",fontSize:18}},pt.icon),
+            h("td",{style:{padding:"9px 10px",fontWeight:700,color:"#0F2044"}},p.name||"-"),
+            h("td",{style:{padding:"9px 10px",color:"#64748b"}},p.location||"-"),
+            h("td",{style:{padding:"9px 10px",fontWeight:600}},fmt(p.budget)+" ر.ع"),
+            h("td",{style:{padding:"9px 10px",fontWeight:700,color:pct(p.spent,p.budget)>90?"#dc2626":"#16a34a"}},pct(p.spent,p.budget)+"%"),
+            h("td",{style:{padding:"9px 10px",minWidth:90}},h("div",{style:{fontSize:11,fontWeight:700,color:"#0284c7",marginBottom:2}},aP+"%"),h(Bar,{p:aP,h:5})),
+            h("td",{style:{padding:"9px 10px"}},al.length>0?h("span",{style:{background:"#fee2e2",color:"#dc2626",padding:"2px 8px",borderRadius:10,fontSize:11,fontWeight:700}},"⚠️ "+al.length):h("span",{style:{color:"#16a34a",fontSize:12}},"✅"))
+          );
+        }))
+      ))
+    )})
+  );
 }
 
-/* ═══════════════ USERS VIEW ═══════════════ */
+/* ── USERS VIEW ── */
 function UsersView({users,projects,onAdd,onDel}){
-  const[copied,setCopied]=useState(null);
-  const copy=(code,id)=>{navigator.clipboard?.writeText(code);setCopied(id);setTimeout(()=>setCopied(null),1800);};
-  return <div className="fade-in">
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}>
-      <div><h2 style={{color:"#0F2044",margin:0,fontSize:22,fontWeight:900}}>إدارة المستخدمين / Users</h2><div style={{fontSize:12,color:"#64748b",marginTop:2}}>{users.length} مستخدم نشط</div></div>
-      <Btn onClick={onAdd} color="#1B8B8E">+ إضافة مستخدم</Btn>
-    </div>
-    {users.length===0?<div style={{background:"#fff",borderRadius:14,padding:56,textAlign:"center",color:"#94a3b8"}}><div style={{fontSize:52,marginBottom:12}}>👥</div><div style={{fontSize:16,fontWeight:700,color:"#64748b",marginBottom:6}}>لا يوجد مستخدمون</div></div>:
-    <div style={{display:"flex",flexDirection:"column",gap:10}}>
-      {users.map(u=>{
-        const rd=ROLES[u.role]||{ar:u.role,en:"",clr:"#666"};
-        const aProjs=projects.filter(p=>(u.projectIds||[]).includes(p.id));
-        return <div key={u.id} style={{background:"#fff",borderRadius:14,boxShadow:"0 2px 10px rgba(0,0,0,.06)",padding:"14px 18px",borderRight:`4px solid ${rd.clr}`}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12}}>
-            <div style={{flex:1}}>
-              <div style={{fontSize:16,fontWeight:800,color:"#0F2044",marginBottom:2}}>{u.name}</div>
-              <div style={{fontSize:12,color:rd.clr,fontWeight:700}}>{rd.ar} / {rd.en}</div>
-              {u.phone&&<div style={{fontSize:12,color:"#64748b",marginTop:3}}>📞 {u.phone}</div>}
-              <div style={{marginTop:8,display:"flex",flexWrap:"wrap",gap:5}}>
-                {aProjs.length===0?<span style={{fontSize:11,color:"#94a3b8"}}>لا توجد مشاريع مخصصة</span>:
-                aProjs.map(p=>{const pt=getPT(p.type);return <span key={p.id} style={{background:"#dbeafe",color:"#1d4ed8",padding:"2px 10px",borderRadius:10,fontSize:11,fontWeight:600}}>{pt.icon} {p.name}</span>;})}
-              </div>
-            </div>
-            <div style={{textAlign:"center"}}>
-              <div style={{fontSize:11,color:"#64748b",marginBottom:4}}>رمز الدخول</div>
-              <div style={{display:"flex",alignItems:"center",gap:6}}>
-                <code style={{fontSize:15,fontWeight:900,color:"#0F2044",background:"#f1f5f9",padding:"7px 14px",borderRadius:8,letterSpacing:2}}>{u.code}</code>
-                <button onClick={()=>copy(u.code,u.id)} style={{border:"none",background:copied===u.id?"#dcfce7":"#f1f5f9",borderRadius:6,padding:"6px 10px",cursor:"pointer",fontSize:14}}>{copied===u.id?"✅":"📋"}</button>
-              </div>
-              <Btn sm color="#fee2e2" tc="#b91c1c" style={{marginTop:7,width:"100%"}} onClick={()=>onDel(u.id)}>🗑 حذف</Btn>
-            </div>
-          </div>
-        </div>;
-      })}
-    </div>}
-  </div>;
+  const[cp,setCp]=useState(null);
+  const copy=(code,id)=>{navigator.clipboard&&navigator.clipboard.writeText(code);setCp(id);setTimeout(()=>setCp(null),1800);};
+  return h("div",{className:"fi"},
+    h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}},
+      h("div",null,h("h2",{style:{color:"#0F2044",margin:0,fontSize:22,fontWeight:900}},"إدارة المستخدمين"),h("div",{style:{fontSize:12,color:"#64748b",marginTop:2}},users.length+" مستخدم")),
+      h(Btn,{ch:"+ إضافة مستخدم",clr:"#1B8B8E",onClick:onAdd})
+    ),
+    users.length===0?h("div",{style:{background:"#fff",borderRadius:14,padding:56,textAlign:"center",color:"#94a3b8"}},h("div",{style:{fontSize:52,marginBottom:12}},"👥"),h("div",{style:{fontSize:16,fontWeight:700,color:"#64748b"}},"لا يوجد مستخدمون")):
+    h("div",{style:{display:"flex",flexDirection:"column",gap:10}},
+      users.map(u=>{
+        const rd=ROLES[u.role]||{ar:u.role,c:"#666"};
+        const aP=projects.filter(p=>(u.projectIds||[]).includes(p.id));
+        return h("div",{key:u.id,style:{background:"#fff",borderRadius:14,boxShadow:"0 2px 10px rgba(0,0,0,.06)",padding:"14px 18px",borderRight:"4px solid "+rd.c}},
+          h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12}},
+            h("div",{style:{flex:1}},
+              h("div",{style:{fontSize:16,fontWeight:800,color:"#0F2044",marginBottom:2}},u.name),
+              h("div",{style:{fontSize:12,color:rd.c,fontWeight:700}},rd.ar),
+              u.phone&&h("div",{style:{fontSize:12,color:"#64748b",marginTop:3}},"📞 "+u.phone),
+              h("div",{style:{marginTop:8,display:"flex",flexWrap:"wrap",gap:5}},
+                aP.length===0?h("span",{style:{fontSize:11,color:"#94a3b8"}},"لا توجد مشاريع مخصصة"):
+                aP.map(p=>{const pt=gpt(p.type);return h("span",{key:p.id,style:{background:"#dbeafe",color:"#1d4ed8",padding:"2px 10px",borderRadius:10,fontSize:11,fontWeight:600}},pt.icon+" "+p.name);})
+              )
+            ),
+            h("div",{style:{textAlign:"center"}},
+              h("div",{style:{fontSize:11,color:"#64748b",marginBottom:4}},"رمز الدخول"),
+              h("div",{style:{display:"flex",alignItems:"center",gap:6}},
+                h("code",{style:{fontSize:15,fontWeight:900,color:"#0F2044",background:"#f1f5f9",padding:"7px 14px",borderRadius:8,letterSpacing:2}},u.code),
+                h("button",{onClick:()=>copy(u.code,u.id),style:{border:"none",background:cp===u.id?"#dcfce7":"#f1f5f9",borderRadius:6,padding:"6px 10px",cursor:"pointer",fontSize:14}},cp===u.id?"✅":"📋")
+              ),
+              h(Btn,{ch:"🗑 حذف",sm:true,clr:"#fee2e2",tc:"#b91c1c",style:{marginTop:7,width:"100%"},onClick:()=>onDel(u.id)})
+            )
+          )
+        );
+      })
+    )
+  );
 }
 
-/* ═══════════════ FOCAL POINT VIEW ═══════════════ */
-function FocalView({user,projects,stages,users,onUpdate}){
+/* ── FOCAL VIEW ── */
+function FocalView({user,projects,stages,onUpdate}){
   const[sel,setSel]=useState(null);
   const[tab,setTab]=useState("stages");
-  const rd=ROLES[user.role]||{ar:user.role,en:"",clr:"#0284c7"};
+  const rd=ROLES[user.role]||{ar:user.role,c:"#0284c7"};
   const myP=projects.filter(p=>(user.projectIds||[]).includes(p.id));
   const myStages=stages.filter(s=>(user.projectIds||[]).includes(s.projectId)&&(user.role==="pm"||s.responsibleRole===user.role));
-  const myTasks=myStages.flatMap(s=>(s.tasks||[]).filter(t=>t.assignedRole===user.role).map(t=>({...t,stageName:s.name,stageId:s.id,projectName:(projects.find(p=>p.id===s.projectId)||{}).name||""})));
-  const myKpis=myP.flatMap(p=>(p.kpis||[]).filter(k=>k.responsibleRole===user.role).map(k=>({...k,projectName:p.name,projectId:p.id})));
-
+  const myTasks=myStages.flatMap(s=>(s.tasks||[]).filter(t=>t.assignedRole===user.role).map(t=>({...t,stageName:s.name,stageId:s.id,projName:(projects.find(p=>p.id===s.projectId)||{name:""}).name})));
   const pending=myStages.filter(s=>s.status!=="completed").length;
-  const doneTasks=myTasks.filter(t=>t.status==="done").length;
-  const overdueTasks=myTasks.filter(t=>isOverdue(t.dueDate)&&t.status!=="done").length;
+  const odTasks=myTasks.filter(t=>overdue(t.dueDate)&&t.status!=="done").length;
 
-  return <div className="fade-in">
-    <div style={{background:`linear-gradient(135deg,${rd.clr}18,${rd.clr}06)`,border:`1px solid ${rd.clr}25`,borderRadius:14,padding:"18px 22px",marginBottom:20,borderRight:`4px solid ${rd.clr}`}}>
-      <div style={{fontSize:26,marginBottom:6}}>👋</div>
-      <h2 style={{margin:"0 0 2px",color:"#0F2044",fontSize:20,fontWeight:900}}>مرحباً، {user.name}</h2>
-      <div style={{fontSize:13,color:rd.clr,fontWeight:700,marginBottom:12}}>{rd.ar} / {rd.en}</div>
-      <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
-        {[["مشاريع",myP.length,"#0F2044"],["مراحل معلقة",pending,"#f59e0b"],["مهامي",myTasks.length,"#7c3aed"],["مهام متأخرة",overdueTasks,"#dc2626"],["مؤشرات KPI",myKpis.length,"#ea580c"]].map(([l,v,c])=>(
-          <div key={l}><span style={{fontSize:28,fontWeight:900,color:c}}>{v}</span><div style={{fontSize:11,color:"#64748b"}}>{l}</div></div>
-        ))}
-      </div>
-    </div>
-
-    <div style={{display:"flex",borderBottom:"1px solid #e2e8f0",marginBottom:16,background:"#fff",borderRadius:"12px 12px 0 0",padding:"0 8px"}}>
-      {[["stages","المراحل ("+myStages.length+")"],["tasks","المهام الفرعية ("+myTasks.length+")"],["kpis","مؤشراتي KPI ("+myKpis.length+")"]].map(([v,l])=>(
-        <button key={v} className={`tab-btn${tab===v?" active":""}`} onClick={()=>setTab(v)}>{l}</button>
-      ))}
-    </div>
-
-    {tab==="stages"&&<div>
-      {myP.length===0?<div style={{background:"#fff",borderRadius:14,padding:48,textAlign:"center",color:"#94a3b8"}}><div style={{fontSize:48,marginBottom:12}}>📋</div><div>لا توجد مهام مخصصة</div></div>:
+  return h("div",{className:"fi"},
+    h("div",{style:{background:rd.c+"18",border:"1px solid "+rd.c+"25",borderRadius:14,padding:"18px 22px",marginBottom:18,borderRight:"4px solid "+rd.c}},
+      h("div",{style:{fontSize:26,marginBottom:6}},"👋"),
+      h("h2",{style:{margin:"0 0 2px",color:"#0F2044",fontSize:20,fontWeight:900}},"مرحباً، "+user.name),
+      h("div",{style:{fontSize:13,color:rd.c,fontWeight:700,marginBottom:12}},rd.ar),
+      h("div",{style:{display:"flex",gap:20,flexWrap:"wrap"}},
+        [["مشاريعي",myP.length,"#0F2044"],["مراحل معلقة",pending,"#f59e0b"],["مهامي",myTasks.length,"#7c3aed"],["متأخرة",odTasks,"#dc2626"]].map(([l,v,c])=>h("div",{key:l},h("span",{style:{fontSize:28,fontWeight:900,color:c}},v),h("div",{style:{fontSize:11,color:"#64748b"}},l)))
+      )
+    ),
+    h("div",{style:{display:"flex",borderBottom:"1px solid #e2e8f0",marginBottom:14,background:"#fff",borderRadius:"12px 12px 0 0",padding:"0 8px"}},
+      h(Tab,{label:"المراحل ("+myStages.length+")",active:tab==="stages",onClick:()=>setTab("stages")}),
+      h(Tab,{label:"المهام الفرعية ("+myTasks.length+")",active:tab==="tasks",onClick:()=>setTab("tasks")})
+    ),
+    tab==="stages"&&h("div",null,
+      myP.length===0?h("div",{style:{background:"#fff",borderRadius:14,padding:48,textAlign:"center",color:"#94a3b8"}},h("div",{style:{fontSize:48,marginBottom:12}},"📋"),"لا توجد مهام مخصصة"):
       myP.map(project=>{
         const ps=myStages.filter(s=>s.projectId===project.id);
-        const pt=getPT(project.type);
         if(ps.length===0)return null;
-        return <div key={project.id} style={{background:"#fff",borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,.07)",padding:"16px 20px",marginBottom:12}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-            <span style={{fontSize:20}}>{pt.icon}</span>
-            <div><div style={{fontSize:16,fontWeight:900,color:"#0F2044"}}>{project.name}</div><div style={{fontSize:11,color:"#64748b"}}>📍 {project.location}</div></div>
-          </div>
-          {ps.map(s=>{const st=getSt(s.status);const myT=(s.tasks||[]).filter(t=>t.assignedRole===user.role);return <div key={s.id} onClick={()=>setSel({stage:s,project})} style={{background:"#f8fafc",borderRadius:10,padding:"11px 13px",marginBottom:7,borderRight:`3px solid ${st.clr}`,cursor:"pointer",transition:"background .15s"}} onMouseEnter={e=>e.currentTarget.style.background="#eef3ff"} onMouseLeave={e=>e.currentTarget.style.background="#f8fafc"}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:800,color:"#1e293b",marginBottom:3}}>{s.name}</div>
-                <div style={{fontSize:11,color:"#64748b"}}>{s.startDate&&`${s.startDate}`}{s.endDate&&` → ${s.endDate}`}{isOverdue(s.endDate)&&s.status!=="completed"&&<span style={{color:"#dc2626",fontWeight:700}}> ⚠️ متأخرة</span>}</div>
-                {myT.length>0&&<div style={{fontSize:11,color:"#7c3aed",marginTop:3}}>📌 {myT.filter(t=>t.status==="done").length}/{myT.length} مهمة منجزة</div>}
-                {s.updatedAt&&<div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>آخر تحديث: {new Date(s.updatedAt).toLocaleDateString("ar-OM")}</div>}
-              </div>
-              <div style={{textAlign:"center",flexShrink:0}}><Badge v={s.status}/><div style={{fontSize:10,color:"#0284c7",marginTop:5,fontWeight:600}}>اضغط للتحديث ✏️</div></div>
-            </div>
-            <div style={{marginTop:8}}><Bar p={s.completionPct||0} color={rd.clr}/></div>
-          </div>;})}
-        </div>;
-      })}
-    </div>}
-
-    {tab==="tasks"&&<div>
-      {myTasks.length===0?<Card><div style={{textAlign:"center",padding:"24px 0",color:"#94a3b8"}}><div style={{fontSize:40,marginBottom:8}}>📌</div><div>لا توجد مهام فرعية مخصصة لك</div></div></Card>:
+        const pt=gpt(project.type);
+        return h("div",{key:project.id,style:{background:"#fff",borderRadius:14,boxShadow:"0 2px 12px rgba(0,0,0,.07)",padding:"16px 20px",marginBottom:12}},
+          h("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:12}},h("span",{style:{fontSize:20}},pt.icon),h("div",null,h("div",{style:{fontSize:16,fontWeight:900,color:"#0F2044"}},project.name),h("div",{style:{fontSize:11,color:"#64748b"}},"📍 "+project.location))),
+          ps.map(s=>{
+            const st=gst(s.status);const myT=(s.tasks||[]).filter(t=>t.assignedRole===user.role);const doneT=myT.filter(t=>t.status==="done").length;
+            return h("div",{key:s.id,onClick:()=>setSel({stage:s,project}),style:{background:"#f8fafc",borderRadius:10,padding:"11px 13px",marginBottom:7,borderRight:"3px solid "+st.c,cursor:"pointer",transition:"background .15s"},onMouseEnter:e=>e.currentTarget.style.background="#eef3ff",onMouseLeave:e=>e.currentTarget.style.background="#f8fafc"},
+              h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}},
+                h("div",{style:{flex:1}},
+                  h("div",{style:{fontSize:13,fontWeight:800,color:"#1e293b",marginBottom:3}},s.name),
+                  h("div",{style:{fontSize:11,color:"#64748b"}},(s.startDate||"")+(s.endDate?" → "+s.endDate:"")),
+                  myT.length>0&&h("div",{style:{fontSize:11,color:"#7c3aed",marginTop:3}},"📌 "+doneT+"/"+myT.length+" مهمة منجزة"),
+                  s.updatedAt&&h("div",{style:{fontSize:10,color:"#94a3b8",marginTop:2}},"آخر تحديث: "+new Date(s.updatedAt).toLocaleDateString("ar-OM"))
+                ),
+                h("div",{style:{textAlign:"center"}},h(Badge,{v:s.status}),h("div",{style:{fontSize:10,color:"#0284c7",marginTop:5,fontWeight:600}},"اضغط للتحديث ✏️"))
+              ),
+              h("div",{style:{marginTop:8}},h(Bar,{p:s.completionPct||0,clr:rd.c}))
+            );
+          })
+        );
+      })
+    ),
+    tab==="tasks"&&h("div",null,
+      myTasks.length===0?h(Card,{ch:h("div",{style:{textAlign:"center",padding:"24px 0",color:"#94a3b8"}},h("div",{style:{fontSize:40,marginBottom:8}},"📌"),"لا توجد مهام فرعية مخصصة")}):
       myTasks.map(t=>{
-        const ts=getTSt(t.status);
+        const ts=gtst(t.status);const od=overdue(t.dueDate)&&t.status!=="done";
         const stage=myStages.find(s=>s.id===t.stageId);
-        return <div key={t.id} style={{background:"#fff",borderRadius:12,padding:"12px 16px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,.06)",borderRight:`3px solid ${ts.clr}`}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
-            <div style={{flex:1}}>
-              <div style={{fontSize:13,fontWeight:800,color:"#1e293b",marginBottom:2}}>{t.priority==="high"?"🔴 ":t.priority==="low"?"🟢 ":"🟡 "}{t.title}</div>
-              <div style={{fontSize:11,color:"#64748b"}}>{t.projectName} · {t.stageName}</div>
-              {t.dueDate&&<div style={{fontSize:11,color:isOverdue(t.dueDate)&&t.status!=="done"?"#dc2626":"#64748b",marginTop:2}}>📅 {t.dueDate}{isOverdue(t.dueDate)&&t.status!=="done"?" ⚠️":""}</div>}
-              {t.notes&&<div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>{t.notes}</div>}
-            </div>
-            {stage&&<select value={t.status} onChange={e=>{const updStage={...stage,tasks:(stage.tasks||[]).map(x=>x.id===t.id?{...x,status:e.target.value,updatedAt:new Date().toISOString()}:x)};onUpdate(updStage,null,null);}} style={{...INP,width:"auto",fontSize:12,padding:"5px 10px",background:ts.bg,color:ts.clr,fontWeight:700,border:"none"}}>
-              {TASK_STATUSES.map(s=><option key={s.v} value={s.v}>{s.ar}</option>)}
-            </select>}
-          </div>
-        </div>;
-      })}
-    </div>}
-
-    {tab==="kpis"&&<div>
-      {myKpis.length===0?<Card><div style={{textAlign:"center",padding:"24px 0",color:"#94a3b8"}}><div style={{fontSize:40,marginBottom:8}}>📊</div><div>لا توجد مؤشرات مخصصة لك</div></div></Card>:
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:12}}>
-        {myKpis.map(k=>(
-          <div key={k.id} style={{background:"#fff",borderRadius:14,padding:"14px 16px",boxShadow:"0 2px 12px rgba(0,0,0,.07)"}}>
-            <div style={{fontSize:10,color:"#94a3b8",marginBottom:4}}>{k.projectName}</div>
-            <KPIGauge kpi={k}/>
-            <div style={{marginTop:10}}>
-              <label style={{fontSize:11,color:"#64748b",display:"block",marginBottom:4}}>تحديث القيمة الفعلية:</label>
-              <div style={{display:"flex",gap:6}}>
-                <input type="number" style={{...INP,flex:1,fontSize:13,textAlign:"center",fontWeight:700}} defaultValue={k.actual||0} onBlur={e=>{const proj=projects.find(p=>p.id===k.projectId);if(proj){const updProj={...proj,kpis:(proj.kpis||[]).map(x=>x.id===k.id?{...x,actual:e.target.value}:x)};onUpdate(null,null,updProj.kpis,k.projectId);}}}/>
-                <span style={{alignSelf:"center",fontSize:12,color:"#64748b"}}>{k.unit}</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>}
-    </div>}
-
-    {sel&&<UpdateModal stage={sel.stage} project={sel.project} user={user} allUsers={users} onClose={()=>setSel(null)} onSave={(updStage,fin,updKpis)=>{onUpdate(updStage,fin,updKpis,sel.project.id);setSel(null);}}/>}
-  </div>;
+        return h("div",{key:t.id,style:{background:"#fff",borderRadius:12,padding:"12px 16px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,.06)",borderRight:"3px solid "+ts.c}},
+          h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}},
+            h("div",{style:{flex:1}},
+              h("div",{style:{fontSize:13,fontWeight:800,color:"#1e293b",marginBottom:2}},(t.priority==="high"?"🔴 ":t.priority==="low"?"🟢 ":"🟡 ")+t.title),
+              h("div",{style:{fontSize:11,color:"#64748b"}},t.projName+" · "+t.stageName),
+              t.dueDate&&h("div",{style:{fontSize:11,color:od?"#dc2626":"#64748b",marginTop:2}},"📅 "+t.dueDate+(od?" ⚠️":"")),
+              t.notes&&h("div",{style:{fontSize:11,color:"#94a3b8",marginTop:2}},t.notes)
+            ),
+            stage&&h("select",{value:t.status,onChange:e=>{const us={...stage,tasks:(stage.tasks||[]).map(x=>x.id===t.id?{...x,status:e.target.value,updatedAt:new Date().toISOString()}:x)};onUpdate(us,null);},style:{...INP,width:"auto",fontSize:12,padding:"5px 10px",background:ts.bg,color:ts.c,fontWeight:700,border:"none"}},
+              TSTATS.map(s=>h("option",{key:s.v,value:s.v},s.ar))
+            )
+          )
+        );
+      })
+    ),
+    sel&&h(UpdateModal,{stage:sel.stage,project:sel.project,user,onClose:()=>setSel(null),onSave:(us,fin)=>{onUpdate(us,fin,sel.project.id);setSel(null);}})
+  );
 }
 
-/* ═══════════════ MAIN APP ═══════════════ */
-export default function App(){
+/* ── MAIN APP ── */
+function App(){
   const[user,setUser]=useState(null);
-  const[loginErr,setLoginErr]=useState("");
-  const[projects,setProjects]=useState(()=>ls.get("moh_p2")||[]);
-  const[stages,setStages]=useState(()=>ls.get("moh_s2")||[]);
-  const[users,setUsers]=useState(()=>ls.get("moh_u2")||[]);
+  const[err,setErr]=useState("");
+  const[projects,setProjects]=useState(()=>ls.get("moh_p3")||[]);
+  const[stages,setStages]=useState(()=>ls.get("moh_s3")||[]);
+  const[users,setUsers]=useState(()=>ls.get("moh_u3")||[]);
   const[view,setView]=useState("dashboard");
-  const[selProj,setSelProj]=useState(null);
-  const[showAddP,setShowAddP]=useState(false);
+  const[selP,setSelP]=useState(null);
+  const[showAP,setShowAP]=useState(false);
   const[editP,setEditP]=useState(null);
-  const[showAddS,setShowAddS]=useState(null);
+  const[showAS,setShowAS]=useState(null);
   const[editS,setEditS]=useState(null);
-  const[showAddU,setShowAddU]=useState(false);
+  const[showAU,setShowAU]=useState(false);
 
-  const saveP=p=>{setProjects(p);ls.set("moh_p2",p);};
-  const saveS=s=>{setStages(s);ls.set("moh_s2",s);};
-  const saveU=u=>{setUsers(u);ls.set("moh_u2",u);};
+  const saveP=p=>{setProjects(p);ls.set("moh_p3",p);};
+  const saveS=s=>{setStages(s);ls.set("moh_s3",s);};
+  const saveU=u=>{setUsers(u);ls.set("moh_u3",u);};
 
-  const login=code=>{
-    if(code.trim()===ADMIN_CODE){setUser({role:"admin",name:"المشرف العام",code});setLoginErr("");}
-    else{const f=users.find(u=>u.code===code.trim());if(f){setUser(f);setLoginErr("");}else setLoginErr("رمز الدخول غير صحيح / Invalid access code");}
-  };
+  function login(code){
+    if(code.trim()===ADMIN){setUser({role:"admin",name:"المشرف العام",code});setErr("");}
+    else{const f=users.find(u=>u.code===code.trim());if(f){setUser(f);setErr("");}else setErr("رمز الدخول غير صحيح / Invalid access code");}
+  }
+  function saveProject(p){saveP(projects.some(x=>x.id===p.id)?projects.map(x=>x.id===p.id?p:x):[...projects,p]);setShowAP(false);setEditP(null);if(selP&&selP.id===p.id)setSelP(p);}
+  function delProject(id){if(!confirm("حذف هذا المشروع؟"))return;saveP(projects.filter(p=>p.id!==id));saveS(stages.filter(s=>s.projectId!==id));if(selP&&selP.id===id)setSelP(null);}
+  function saveStage(s){saveS(stages.some(x=>x.id===s.id)?stages.map(x=>x.id===s.id?s:x):[...stages,s]);setShowAS(null);setEditS(null);}
+  function delStage(id){if(!confirm("حذف هذه المرحلة؟"))return;saveS(stages.filter(s=>s.id!==id));}
+  function saveUser(u){saveU([...users,u]);setShowAU(false);}
+  function delUser(id){if(!confirm("حذف هذا المستخدم؟"))return;saveU(users.filter(u=>u.id!==id));}
+  function stageUpdate(updS,fin,pid){
+    if(updS)saveS(stages.map(s=>s.id===updS.id?updS:s));
+    if(fin&&pid)saveP(projects.map(p=>p.id===pid?{...p,...fin}:p));
+  }
 
-  const saveProject=p=>{saveP(projects.some(x=>x.id===p.id)?projects.map(x=>x.id===p.id?p:x):[...projects,p]);setShowAddP(false);setEditP(null);if(selProj?.id===p.id)setSelProj(p);};
-  const delProject=id=>{if(!confirm("حذف هذا المشروع؟"))return;saveP(projects.filter(p=>p.id!==id));saveS(stages.filter(s=>s.projectId!==id));if(selProj?.id===id)setSelProj(null);};
-  const saveStage=s=>{saveS(stages.some(x=>x.id===s.id)?stages.map(x=>x.id===s.id?s:x):[...stages,s]);setShowAddS(null);setEditS(null);};
-  const delStage=id=>{if(!confirm("حذف هذه المرحلة؟"))return;saveS(stages.filter(s=>s.id!==id));};
-  const saveUser=u=>{saveU([...users,u]);setShowAddU(false);};
-  const delUser=id=>{if(!confirm("حذف هذا المستخدم؟"))return;saveU(users.filter(u=>u.id!==id));};
+  if(!user)return h(Login,{onLogin:login,err});
 
-  const stageUpdate=(updStage,fin,updKpis,projId)=>{
-    if(updStage)saveS(stages.map(s=>s.id===updStage.id?updStage:s));
-    if((fin||updKpis)&&projId)saveP(projects.map(p=>p.id===projId?{...p,...(fin||{}),kpis:updKpis||p.kpis}:p));
-  };
-
-  if(!user)return <Login onLogin={login} err={loginErr}/>;
-
-  const main=()=>{
+  function main(){
     if(user.role==="admin"){
-      if(view==="projects"&&selProj){
-        const liveProj=projects.find(p=>p.id===selProj.id)||selProj;
-        return <ProjectDashboard project={liveProj} stages={stages} users={users} onBack={()=>setSelProj(null)} onAddStage={setShowAddS} onEditStage={s=>{setEditS(s);}} onDelStage={delStage} onEditProject={p=>{setEditP(p);}}/>;
+      if(view==="projects"&&selP){
+        const lp=projects.find(p=>p.id===selP.id)||selP;
+        return h(ProjDash,{project:lp,stages,onBack:()=>setSelP(null),onAddStage:setShowAS,onEditStage:s=>setEditS(s),onDelStage:delStage,onEditProj:p=>setEditP(p)});
       }
-      if(view==="dashboard")return <GlobalDashboard projects={projects} stages={stages}/>;
-      if(view==="projects")return <ProjList projects={projects} stages={stages} onAdd={()=>setShowAddP(true)} onEdit={setEditP} onSelect={setSelProj} onDel={delProject}/>;
-      if(view==="users")return <UsersView users={users} projects={projects} onAdd={()=>setShowAddU(true)} onDel={delUser}/>;
+      if(view==="dashboard")return h(GlobDash,{projects,stages});
+      if(view==="projects")return h(ProjList,{projects,stages,onAdd:()=>setShowAP(true),onEdit:setEditP,onSelect:setSelP,onDel:delProject});
+      if(view==="users")return h(UsersView,{users,projects,onAdd:()=>setShowAU(true),onDel:delUser});
     }
-    return <FocalView user={user} projects={projects} stages={stages} users={users} onUpdate={stageUpdate}/>;
-  };
+    return h(FocalView,{user,projects,stages,onUpdate:stageUpdate});
+  }
 
-  return <div dir="rtl" style={{display:"flex",minHeight:"100vh",background:"#eef2f7",fontFamily:"Cairo,sans-serif"}}>
-    <Sidebar user={user} view={view} onView={v=>{setView(v);setSelProj(null);}} onLogout={()=>{setUser(null);setView("dashboard");}}/>
-    <div style={{flex:1,padding:"24px 28px",overflowY:"auto",maxWidth:"calc(100% - 230px)",minHeight:"100vh"}}>
-      {main()}
-    </div>
-    {(showAddP||editP)&&<ProjModal proj={editP} onSave={saveProject} onClose={()=>{setShowAddP(false);setEditP(null);}}/>}
-    {(showAddS!==null||editS)&&<StageModal stage={editS} projectId={showAddS||editS?.projectId} users={users} onSave={saveStage} onClose={()=>{setShowAddS(null);setEditS(null);}}/>}
-    {showAddU&&<UserModal projects={projects} onSave={saveUser} onClose={()=>setShowAddU(false)}/>}
-  </div>;
+  return h("div",{dir:"rtl",style:{display:"flex",minHeight:"100vh",background:"#eef2f7",fontFamily:"Cairo,sans-serif"}},
+    h(Sidebar,{user,view,onView:v=>{setView(v);setSelP(null);},onLogout:()=>{setUser(null);setView("dashboard");}}),
+    h("div",{style:{flex:1,padding:"24px 28px",overflowY:"auto",maxWidth:"calc(100% - 230px)",minHeight:"100vh"}},main()),
+    (showAP||editP)&&h(ProjModal,{proj:editP,onSave:saveProject,onClose:()=>{setShowAP(false);setEditP(null);}}),
+    (showAS!==null||editS)&&h(StageModal,{stage:editS,projectId:showAS||editS&&editS.projectId,onSave:saveStage,onClose:()=>{setShowAS(null);setEditS(null);}}),
+    showAU&&h(UserModal,{projects,onSave:saveUser,onClose:()=>setShowAU(false)})
+  );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+ReactDOM.createRoot(document.getElementById("root")).render(h(App,null));
 </script>
 </body>
 </html>
