@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>NSH · نظام متابعة المشاريع</title>
+<title>مَسار · نظام متابعة المشاريع</title>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
@@ -18,38 +18,42 @@ input,select,textarea,button{font-family:Cairo,sans-serif}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spinning{animation:spin 1s linear infinite;display:inline-block}
 .rh:hover{background:#f0f7ff!important;cursor:pointer}
-.th{border:none;background:transparent;font-family:Cairo,sans-serif;cursor:pointer;padding:10px 18px;font-size:13px;font-weight:700;color:#64748b;border-bottom:3px solid transparent;transition:all .2s}
+.th{border:none;background:transparent;font-family:Cairo,sans-serif;cursor:pointer;padding:10px 16px;font-size:13px;font-weight:700;color:#64748b;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap}
 .th.act{color:#0F2044;border-bottom-color:#1B8B8E}
+@media print{#sidebar,#topbar-btns{display:none!important}.print-area{padding:0!important;max-width:100%!important}}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script>
-/* ══════════════════════════════════════════
-   FIREBASE INIT
-══════════════════════════════════════════ */
-const firebaseConfig={
+const LOGO_SRC="data:image/png;base64,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";
+
+/* ═══ FIREBASE ═══ */
+firebase.initializeApp({
   apiKey:"AIzaSyAYr8XSWVAKnrRjScZkOxfifL63zSf0UME",
   authDomain:"moh-nsh-tracker.firebaseapp.com",
   projectId:"moh-nsh-tracker",
   storageBucket:"moh-nsh-tracker.firebasestorage.app",
   messagingSenderId:"876762730883",
   appId:"1:876762730883:web:3b4f83f5747cde412e26b6"
-};
-firebase.initializeApp(firebaseConfig);
+});
 const db=firebase.firestore();
 
-/* ══════════════════════════════════════════
-   CONSTANTS
-══════════════════════════════════════════ */
-const ADMIN="MOH-ADMIN-2026";
+/* ═══ CONSTANTS ═══ */
+const APP_NAME_AR="مَسار";
+const APP_NAME_EN="MASAR";
+const ORG_AR="دائرة التخطيط والتنظيم الصحي";
+const ORG_AR2="قسم التخطيط والدراسات";
+const ORG_EN="General Directorate of Health Services, North Al Sharqiyah";
+const ORG_INFO="ص.ب: 275، الرمز البريدي: 400، إبراء، سلطنة عُمان | هاتف: 25403444";
+
 const ROLES={
   pm:{ar:"مدير المشروع",en:"Project Manager",c:"#0284c7"},
-  clinical:{ar:"المدير السريري",en:"Clinical Director",c:"#16a34a"},
-  biomedical:{ar:"مهندس الهندسة الطبية",en:"Biomedical Eng.",c:"#ea580c"},
-  it:{ar:"مسؤول تقنية المعلومات",en:"IT Officer",c:"#7c3aed"},
-  hr:{ar:"منسق الموارد البشرية",en:"HR Coordinator",c:"#dc2626"},
+  engineering:{ar:"الشئون الهندسية",en:"Engineering",c:"#ea580c"},
+  it:{ar:"تقنية المعلومات",en:"IT Officer",c:"#7c3aed"},
+  hr:{ar:"الموارد البشرية",en:"HR Coordinator",c:"#dc2626"},
 };
+
 const PTYPES=[
   {v:"construction",ar:"إنشاء",icon:"🏗",c:"#0284c7"},
   {v:"equipment",ar:"تجهيز",icon:"⚙️",c:"#ea580c"},
@@ -57,13 +61,27 @@ const PTYPES=[
   {v:"maintenance",ar:"صيانة",icon:"🔧",c:"#16a34a"},
   {v:"general",ar:"عام",icon:"📋",c:"#64748b"},
 ];
+
 const KPI_TPL={
-  construction:[{n:"نسبة الإنجاز الإنشائي",u:"%",t:100,r:"pm"},{n:"نسبة الجودة",u:"%",t:90,r:"biomedical"},{n:"توريد المواد",u:"%",t:100,r:"pm"},{n:"حوادث السلامة",u:"حادثة",t:0,r:"pm"}],
-  equipment:[{n:"المعدات المركبة",u:"%",t:100,r:"biomedical"},{n:"المعدات المختبرة",u:"%",t:100,r:"biomedical"},{n:"تدريب الكوادر",u:"%",t:100,r:"hr"}],
-  development:[{n:"المتطلبات المنجزة",u:"%",t:100,r:"it"},{n:"اختبار النظام",u:"%",t:100,r:"it"},{n:"رضا المستخدمين",u:"%",t:80,r:"clinical"}],
-  maintenance:[{n:"الأصول المصانة",u:"%",t:100,r:"biomedical"},{n:"تقليل التوقف",u:"%",t:80,r:"biomedical"}],
-  general:[{n:"نسبة الإنجاز",u:"%",t:100,r:"pm"},{n:"رضا المستفيدين",u:"%",t:85,r:"clinical"}],
+  construction:[
+    {n:"نسبة الإنجاز الإنشائي",u:"%",t:100,r:"pm"},
+  ],
+  equipment:[
+    {n:"المعدات التي تم تركيبها",u:"%",t:100,r:"engineering"},
+    {n:"المعدات التي تم اختبار تشغيلها",u:"%",t:100,r:"engineering"},
+  ],
+  development:[
+    {n:"المتطلبات المنجزة",u:"%",t:100,r:"it"},
+    {n:"اختبار النظام",u:"%",t:100,r:"it"},
+  ],
+  maintenance:[
+    {n:"نسبة الإنجاز",u:"%",t:100,r:"engineering"},
+  ],
+  general:[
+    {n:"نسبة الإنجاز",u:"%",t:100,r:"pm"},
+  ],
 };
+
 const STATS=[
   {v:"not_started",ar:"لم تبدأ",c:"#6b7280",bg:"#f3f4f6"},
   {v:"in_progress",ar:"قيد التنفيذ",c:"#1d4ed8",bg:"#dbeafe"},
@@ -77,31 +95,27 @@ const TSTATS=[
   {v:"done",ar:"منجزة",c:"#15803d",bg:"#dcfce7"},
 ];
 
-/* ══════════════════════════════════════════
-   UTILS
-══════════════════════════════════════════ */
+/* ═══ UTILS ═══ */
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6).toUpperCase();
 const gst=v=>STATS.find(s=>s.v===v)||STATS[0];
 const gtst=v=>TSTATS.find(s=>s.v===v)||TSTATS[0];
 const gpt=v=>PTYPES.find(t=>t.v===v)||PTYPES[4];
-const fmt=n=>Number(n||0).toLocaleString("en-OM");
+const fmt=n=>Number(n||0).toLocaleString("ar-OM");
 const pct=(a,b)=>b>0?Math.min(100,Math.round(Number(a)/Number(b)*100)):0;
 const overdue=d=>d&&new Date(d)<new Date();
+const fmtDate=d=>d?new Date(d).toLocaleDateString("ar-SA"):"";
+const ls={get:k=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):null}catch{return null}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
 
-/* Firebase CRUD */
 async function fbSet(col,id,data){await db.collection(col).doc(id).set(data);}
 async function fbDel(col,id){await db.collection(col).doc(id).delete();}
-function fbListen(col,cb){
-  return db.collection(col).onSnapshot(snap=>{
-    const docs=[];
-    snap.forEach(d=>docs.push({id:d.id,...d.data()}));
-    cb(docs);
-  });
+function fbListen(col,cb){return db.collection(col).onSnapshot(snap=>{const docs=[];snap.forEach(d=>docs.push({id:d.id,...d.data()}));cb(docs);});}
+
+async function addLog(action,detail,user){
+  try{await db.collection("logs").add({action,detail,user:user?.name||"system",role:user?.role||"",ts:new Date().toISOString()});}catch{}
 }
 
 function getAlerts(p,stages){
-  const a=[];
-  if(!p)return a;
+  const a=[];if(!p)return a;
   if(p.budget>0&&Number(p.spent||0)/Number(p.budget)>.9)a.push({sev:"w",msg:"نسبة الصرف تجاوزت 90%",icon:"💰"});
   if(p.plannedEnd&&overdue(p.plannedEnd)&&!p.actualEnd)a.push({sev:"d",msg:"تجاوز تاريخ الإنجاز المخطط",icon:"📅"});
   stages.forEach(s=>{
@@ -111,240 +125,205 @@ function getAlerts(p,stages){
   return a;
 }
 
-/* ══════════════════════════════════════════
-   TINY UI ENGINE (no React dependency)
-══════════════════════════════════════════ */
-// Simple component system using DOM manipulation
+/* ═══ DOM HELPERS ═══ */
 const INP="width:100%;padding:9px 13px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;background:#fafafa;outline:none;font-family:Cairo,sans-serif;";
-
-/* ══════════════════════════════════════════
-   STATE
-══════════════════════════════════════════ */
-let STATE={
-  user:null,
-  projects:[],
-  stages:[],
-  users:[],
-  loading:true,
-  view:"dashboard",
-  selProj:null,
-  modal:null, // {type, data}
-  loginErr:"",
-  projTab:"overview",
-  stageExpanded:null,
-  focalTab:"stages",
-  searchProj:"",
-  filterType:"all",
-};
-let unsubs=[];
-
-function setState(patch){
-  Object.assign(STATE,typeof patch==="function"?patch(STATE):patch);
-  render();
-}
-
-/* ══════════════════════════════════════════
-   DB ACTIONS
-══════════════════════════════════════════ */
-async function saveProject(p){
-  try{await fbSet("projects",p.id,p);closeModal();}
-  catch(e){alert("خطأ في الحفظ: "+e.message);}
-}
-async function deleteProject(id){
-  if(!confirm("حذف هذا المشروع نهائياً؟"))return;
-  const sids=STATE.stages.filter(s=>s.projectId===id).map(s=>s.id);
-  await fbDel("projects",id);
-  for(const sid of sids)await fbDel("stages",sid);
-  if(STATE.selProj&&STATE.selProj.id===id)setState({selProj:null});
-}
-async function saveStage(s){
-  try{await fbSet("stages",s.id,s);closeModal();}
-  catch(e){alert("خطأ في الحفظ: "+e.message);}
-}
-async function deleteStage(id){
-  if(!confirm("حذف هذه المرحلة؟"))return;
-  await fbDel("stages",id);
-}
-async function saveUser(u){
-  try{await fbSet("users",u.id,u);closeModal();}
-  catch(e){alert("خطأ في الحفظ: "+e.message);}
-}
-async function deleteUser(id){
-  if(!confirm("حذف هذا المستخدم؟"))return;
-  await fbDel("users",id);
-}
-async function updateStage(s,fin,projId){
-  try{
-    await fbSet("stages",s.id,s);
-    if(fin&&projId){
-      const proj=STATE.projects.find(p=>p.id===projId);
-      if(proj)await fbSet("projects",projId,{...proj,...fin});
-    }
-    closeModal();
-  }catch(e){alert("خطأ: "+e.message);}
-}
-
-function closeModal(){setState({modal:null});}
-
-/* ══════════════════════════════════════════
-   LOGIN
-══════════════════════════════════════════ */
-function doLogin(code){
-  if(code.trim()===ADMIN){
-    setState({user:{role:"admin",name:"المشرف العام",code},loginErr:""});
-    startListeners();
-  }else{
-    const f=STATE.users.find(u=>u.code===code.trim());
-    if(f){setState({user:f,loginErr:""});startListeners();}
-    else setState({loginErr:"رمز الدخول غير صحيح / Invalid code"});
-  }
-}
-
-function startListeners(){
-  unsubs.forEach(u=>u());
-  unsubs=[];
-  setState({loading:true});
-  let pc=false,sc=false,uc=false;
-  const check=()=>{if(pc&&sc&&uc)setState({loading:false});};
-  unsubs.push(fbListen("projects",docs=>{setState({projects:docs});pc=true;check();}));
-  unsubs.push(fbListen("stages",docs=>{setState({stages:docs});sc=true;check();}));
-  unsubs.push(fbListen("users",docs=>{setState({users:docs});uc=true;check();}));
-  // timeout fallback
-  setTimeout(()=>setState({loading:false}),5000);
-}
-
-// Pre-load users for login validation (before login)
-fbListen("users",docs=>{ if(!STATE.user)setState({users:docs}); });
-
-/* ══════════════════════════════════════════
-   HTML BUILDERS
-══════════════════════════════════════════ */
-function el(tag,attrs,...children){
+function el(tag,attrs,...ch){
   const e=document.createElement(tag);
   if(attrs)Object.entries(attrs).forEach(([k,v])=>{
     if(k==="style"&&typeof v==="string")e.style.cssText=v;
     else if(k==="className")e.className=v;
     else if(k.startsWith("on")&&typeof v==="function")e.addEventListener(k.slice(2).toLowerCase(),v);
     else if(k==="checked"&&tag==="input")e.checked=v;
-    else if(k==="selected"&&tag==="option")e.selected=v;
     else if(k==="disabled")e.disabled=v;
     else if(k==="value"&&(tag==="input"||tag==="textarea"||tag==="select"))e.value=v;
-    else if(k==="htmlFor")e.htmlFor=v;
-    else if(k==="type")e.type=v;
+    else if(k==="src")e.src=v;
+    else if(k==="alt")e.alt=v;
     else e.setAttribute(k,v);
   });
-  children.flat(Infinity).forEach(c=>{
-    if(c===null||c===undefined||c===false)return;
-    e.appendChild(typeof c==="string"||typeof c==="number"?document.createTextNode(c):c);
+  ch.flat(Infinity).forEach(c=>{
+    if(c===null||c===undefined||c===false||c===true)return;
+    if(typeof c==="string"||typeof c==="number"){e.appendChild(document.createTextNode(String(c)));return;}
+    if(c instanceof Node){e.appendChild(c);return;}
   });
   return e;
 }
-const div=(...a)=>el("div",...a);
-const span=(...a)=>el("span",...a);
-const btn=(...a)=>el("button",...a);
-const inp=(...a)=>el("input",...a);
-const sel=(...a)=>el("select",...a);
-const opt=(v,t,selected)=>el("option",{value:v,selected:!!selected},t);
-const h1=(...a)=>el("h1",...a);
-const h2=(...a)=>el("h2",...a);
-const h3=(...a)=>el("h3",...a);
-const p=(...a)=>el("p",...a);
-const code=(...a)=>el("code",...a);
-const lbl=(...a)=>el("label",...a);
-const ta=(...a)=>el("textarea",...a);
+const div=(...a)=>el("div",...a);const span=(...a)=>el("span",...a);const btn=(...a)=>el("button",...a);
+const inp=(...a)=>el("input",...a);const sel=(...a)=>el("select",...a);const opt=(v,t,s)=>el("option",{value:v,selected:!!s},t);
+const h1=(...a)=>el("h1",...a);const h2=(...a)=>el("h2",...a);const p=(...a)=>el("p",...a);
+const lbl=(...a)=>el("label",...a);const ta=(...a)=>el("textarea",...a);const img=(...a)=>el("img",...a);
+const tbl=(...a)=>el("table",...a);const thead=(...a)=>el("thead",...a);const tbody=(...a)=>el("tbody",...a);
+const tr=(...a)=>el("tr",...a);const th=(...a)=>el("th",...a);const td=(...a)=>el("td",...a);
 
-/* helper: build <select> with onChange */
-function mkSel(style, onChange, ...opts){
-  const s = document.createElement('select');
-  s.style.cssText = style;
-  opts.forEach(o => s.appendChild(o));
-  s.addEventListener('change', onChange);
-  return s;
-}
-
-const tbl=(...a)=>el("table",...a);
-const thead=(...a)=>el("thead",...a);
-const tbody=(...a)=>el("tbody",...a);
-const tr=(...a)=>el("tr",...a);
-const th=(...a)=>el("th",...a);
-const td=(...a)=>el("td",...a);
+function mkSel(style,onChange,...opts){const s=document.createElement("select");s.style.cssText=style;opts.flat(Infinity).forEach(o=>{if(o instanceof Node)s.appendChild(o);});s.addEventListener("change",onChange);return s;}
 
 function Btn(text,onclick,opts={}){
-  const {clr="#0F2044",tc="#fff",sm=false,style="",disabled=false}=opts;
-  const b=btn({
-    style:`padding:${sm?"5px 12px":"9px 20px"};background:${disabled?"#e2e8f0":clr};color:${disabled?"#94a3b8":tc};border:none;border-radius:8px;font-size:${sm?12:14}px;font-weight:700;cursor:${disabled?"not-allowed":"pointer"};white-space:nowrap;${style}`,
-    onClick:disabled?null:onclick,disabled
-  },text);
-  return b;
+  const{clr="#0F2044",tc="#fff",sm=false,style="",disabled=false}=opts;
+  return btn({style:`padding:${sm?"5px 12px":"9px 20px"};background:${disabled?"#e2e8f0":clr};color:${disabled?"#94a3b8":tc};border:none;border-radius:8px;font-size:${sm?12:14}px;font-weight:700;cursor:${disabled?"not-allowed":"pointer"};white-space:nowrap;${style}`,onClick:disabled?null:onclick,disabled},text);
 }
 function Badge(v){const s=gst(v);return span({style:`background:${s.bg};color:${s.c};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap`},s.ar);}
 function TBadge(v){const s=gtst(v);return span({style:`background:${s.bg};color:${s.c};padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700`},s.ar);}
 function BarEl(pv,clr,ht=7){
-  const v=Math.min(100,Math.max(0,pv||0));
-  const c=clr||(v>=100?"#16a34a":v>=60?"#0284c7":"#f59e0b");
-  return div({style:`background:#e2e8f0;border-radius:10px;height:${ht}px;overflow:hidden`},
-    div({style:`width:${v}%;background:${c};height:100%;border-radius:10px;transition:width .6s`})
-  );
+  const v=Math.min(100,Math.max(0,pv||0));const c=clr||(v>=100?"#16a34a":v>=60?"#0284c7":"#f59e0b");
+  return div({style:`background:#e2e8f0;border-radius:10px;height:${ht}px;overflow:hidden`},div({style:`width:${v}%;background:${c};height:100%;border-radius:10px;transition:width .6s`}));
 }
 function Ring(pv,sz=72,clr="#0284c7"){
   const r=28,circ=2*Math.PI*r,v=Math.min(100,Math.max(0,pv||0));
-  const ns="http://www.w3.org/2000/svg";
-  const svg=document.createElementNS(ns,"svg");
-  svg.setAttribute("width",sz);svg.setAttribute("height",sz);svg.setAttribute("viewBox","0 0 64 64");
-  svg.style.cssText="transform:rotate(-90deg)";
-  const c1=document.createElementNS(ns,"circle");
-  c1.setAttribute("cx",32);c1.setAttribute("cy",32);c1.setAttribute("r",r);c1.setAttribute("fill","none");c1.setAttribute("stroke","#e2e8f0");c1.setAttribute("stroke-width",6);
-  const c2=document.createElementNS(ns,"circle");
-  c2.setAttribute("cx",32);c2.setAttribute("cy",32);c2.setAttribute("r",r);c2.setAttribute("fill","none");c2.setAttribute("stroke",clr);c2.setAttribute("stroke-width",6);
-  c2.setAttribute("stroke-dasharray",circ);c2.setAttribute("stroke-dashoffset",circ-(v/100)*circ);c2.setAttribute("stroke-linecap","round");c2.style.transition="stroke-dashoffset .8s";
-  const txt=document.createElementNS(ns,"text");
-  txt.setAttribute("x",32);txt.setAttribute("y",36);txt.setAttribute("text-anchor","middle");
-  txt.style.cssText="font-size:13px;font-weight:900;fill:"+clr+";transform:rotate(90deg) translate(0,-64px);font-family:Cairo,sans-serif";
-  txt.textContent=v+"%";
-  svg.appendChild(c1);svg.appendChild(c2);svg.appendChild(txt);
+  const ns="http://www.w3.org/2000/svg",svg=document.createElementNS(ns,"svg");
+  svg.setAttribute("width",sz);svg.setAttribute("height",sz);svg.setAttribute("viewBox","0 0 64 64");svg.style.cssText="transform:rotate(-90deg)";
+  const mk=(fill,stroke,sw,da,do_)=>{const c=document.createElementNS(ns,"circle");c.setAttribute("cx",32);c.setAttribute("cy",32);c.setAttribute("r",r);c.setAttribute("fill",fill);c.setAttribute("stroke",stroke);c.setAttribute("stroke-width",sw);if(da)c.setAttribute("stroke-dasharray",da);if(do_!==undefined)c.setAttribute("stroke-dashoffset",do_);if(da)c.setAttribute("stroke-linecap","round");return c;};
+  const txt=document.createElementNS(ns,"text");txt.setAttribute("x",32);txt.setAttribute("y",36);txt.setAttribute("text-anchor","middle");txt.style.cssText=`font-size:13px;font-weight:900;fill:${clr};transform:rotate(90deg) translate(0,-64px);font-family:Cairo,sans-serif`;txt.textContent=v+"%";
+  svg.appendChild(mk("none","#e2e8f0",6));svg.appendChild(mk("none",clr,6,circ,circ-(v/100)*circ));svg.appendChild(txt);
   return svg;
 }
-function CardEl(content,style=""){return div({style:`background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.07);padding:18px 22px;${style}`},content);}
+function CardEl(ch,style=""){return div({style:`background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.07);padding:18px 22px;${style}`},ch);}
+function FldEl(ar,ch,half=false){return div({style:`margin-bottom:13px;width:${half?"calc(50% - 8px)":"100%"}`},lbl({style:"display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:4px"},ar),ch);}
+function TabBtn(label,active,onclick){return btn({className:"th"+(active?" act":""),onClick:onclick},label);}
 function SectionEl(t){return div({style:"margin-top:8px;margin-bottom:14px;padding-top:14px;border-top:1px solid #e2e8f0;font-size:14px;font-weight:800;color:#0F2044"},t);}
-function FldEl(ar,ch,half=false){
-  return div({style:`margin-bottom:13px;width:${half?"calc(50% - 8px)":"100%"}`},
-    lbl({style:"display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:4px"},ar),ch
-  );
+
+/* ═══ STATE ═══ */
+let S={user:null,projects:[],stages:[],users:[],logs:[],loading:true,view:"dashboard",selProj:null,modal:null,loginErr:"",projTab:"overview",stageExp:null,focalTab:"stages",search:"",filterType:"all",filterDateFrom:"",filterDateTo:"",fullscreen:false,adminCreds:{username:"Admin",password:"MOH2026"}};
+let unsubs=[];
+function setState(p){Object.assign(S,typeof p==="function"?p(S):p);render();}
+function closeModal(){setState({modal:null});}
+
+/* ═══ DB ═══ */
+async function saveProject(p){try{await fbSet("projects",p.id,p);await addLog("project_save","حفظ مشروع: "+p.name,S.user);closeModal();}catch(e){alert("خطأ: "+e.message);}}
+async function deleteProject(id){if(!confirm("حذف هذا المشروع نهائياً؟"))return;const sids=S.stages.filter(s=>s.projectId===id).map(s=>s.id);await fbDel("projects",id);for(const sid of sids)await fbDel("stages",sid);if(S.selProj?.id===id)setState({selProj:null});}
+async function saveStage(s){try{await fbSet("stages",s.id,s);await addLog("stage_save","حفظ مرحلة: "+s.name,S.user);closeModal();}catch(e){alert("خطأ: "+e.message);}}
+async function deleteStage(id){if(!confirm("حذف هذه المرحلة؟"))return;await fbDel("stages",id);}
+async function saveUser(u){
+  try{
+    // Check empId uniqueness
+    const existing=S.users.find(x=>x.empId===u.empId&&x.id!==u.id);
+    if(existing){alert("الرقم الوظيفي مستخدم مسبقاً - يرجى اختيار رقم مختلف");return;}
+    await fbSet("users",u.id,u);
+    closeModal();
+  }catch(e){alert("خطأ: "+e.message);}
 }
-function TabBtn(label,active,onclick){
-  const b=btn({className:"th"+(active?" act":""),onClick:onclick},label);
-  return b;
+async function saveAdminCreds(creds){
+  try{await db.collection("settings").doc("admin").set(creds);closeModal();alert("تم تحديث بيانات المشرف بنجاح ✅");}
+  catch(e){alert("خطأ: "+e.message);}
+}
+async function deleteUser(id){if(!confirm("حذف هذا المستخدم؟"))return;await fbDel("users",id);}
+async function updateStage(s,fin,projId){
+  try{
+    await fbSet("stages",s.id,s);
+    await addLog("stage_update","تحديث مرحلة: "+s.name+" → "+s.status+" ("+s.completionPct+"%)",S.user);
+    if(fin&&projId){const proj=S.projects.find(p=>p.id===projId);if(proj)await fbSet("projects",projId,{...proj,...fin});}
+    closeModal();
+  }catch(e){alert("خطأ: "+e.message);}
 }
 
-/* ══════════════════════════════════════════
-   MODAL WRAPPER
-══════════════════════════════════════════ */
-function ModalEl(title,content,wide=false){
-  const overlay=div({
-    style:"position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px;direction:rtl",
-    onClick:e=>{if(e.target===overlay)closeModal();}
+function doLogin(empId,password){
+  const ac=S.adminCreds;
+  if(empId.trim()===ac.username&&password===ac.password){
+    setState({user:{role:"admin",name:"المشرف العام",empId:ac.username},loginErr:""});startListeners();return;
+  }
+  const f=S.users.find(u=>u.empId===empId.trim()&&u.password===password);
+  if(f){setState({user:f,loginErr:""});startListeners();}
+  else setState({loginErr:"الرقم الوظيفي أو كلمة المرور غير صحيحة"});
+}
+function startListeners(){
+  unsubs.forEach(u=>u());unsubs=[];setState({loading:true});
+  let pc=false,sc=false,uc=false,lc=false,ac=false;
+  const check=()=>{if(pc&&sc&&uc&&lc&&ac)setState({loading:false});};
+  unsubs.push(fbListen("projects",d=>{setState({projects:d});pc=true;check();}));
+  unsubs.push(fbListen("stages",d=>{setState({stages:d});sc=true;check();}));
+  unsubs.push(fbListen("users",d=>{setState({users:d});uc=true;check();}));
+  unsubs.push(db.collection("logs").orderBy("ts","desc").limit(100).onSnapshot(snap=>{const d=[];snap.forEach(doc=>d.push({id:doc.id,...doc.data()}));setState({logs:d});lc=true;check();}));
+  // Load admin credentials from Firestore
+  unsubs.push(db.collection("settings").doc("admin").onSnapshot(doc=>{
+    if(doc.exists){setState({adminCreds:doc.data()});}
+    else{// Initialize default admin creds
+      db.collection("settings").doc("admin").set({username:"Admin",password:"MOH2026"}).catch(()=>{});
+    }
+    ac=true;check();
+  }));
+  setTimeout(()=>setState({loading:false}),6000);
+}
+// Pre-load users + admin creds for login validation
+fbListen("users",d=>{if(!S.user)setState({users:d});});
+db.collection("settings").doc("admin").onSnapshot(doc=>{if(doc.exists&&!S.user)setState({adminCreds:doc.data()});});
+
+/* ═══ LOGIN ═══ */
+function buildLogin(){
+  const empInp=inp({type:"text",placeholder:"الرقم الوظيفي / Employee ID",style:INP+"font-size:15px;margin-bottom:10px;padding:12px;text-align:right;",onKeydown:e=>{if(e.key==="Enter")pwInp.focus();}});
+  const pwInp=inp({type:"password",placeholder:"كلمة المرور / Password",style:INP+"font-size:15px;margin-bottom:10px;padding:12px;",onKeydown:e=>{if(e.key==="Enter")doLogin(empInp.value,pwInp.value);}});
+  const errDiv=div({style:"display:none;color:#dc2626;font-size:12px;margin-bottom:10px;background:#fee2e2;padding:8px 12px;border-radius:8px;text-align:right"});
+  if(S.loginErr){errDiv.textContent=S.loginErr;errDiv.style.display="";}
+  return div({style:"min-height:100vh;background:linear-gradient(145deg,#0F2044 0%,#1a4a6e 50%,#1B8B8E 100%);display:flex;align-items:center;justify-content:center;padding:16px"},
+    div({className:"fi",style:"background:#fff;border-radius:24px;padding:40px;width:100%;max-width:440px;box-shadow:0 28px 72px rgba(0,0,0,.35);text-align:center"},
+      img({src:LOGO_SRC,alt:"MOH Logo",style:"height:70px;margin-bottom:16px;object-fit:contain"}),
+      div({style:"font-size:10px;letter-spacing:3px;color:#94a3b8;text-transform:uppercase;margin-bottom:4px"},"وزارة الصحة · Ministry of Health"),
+      div({style:"font-size:12px;color:#374151;font-weight:700;margin-bottom:2px;line-height:1.6"},ORG_AR),
+      div({style:"font-size:11px;color:#64748b;margin-bottom:12px"},ORG_AR2),
+      h1({style:"font-size:28px;color:#0F2044;margin:0 0 4px;font-weight:900;letter-spacing:-1px"},APP_NAME_AR),
+      p({style:"color:#1B8B8E;font-size:13px;margin:0 0 24px;font-weight:700"},"نظام متابعة المشاريع الصحية"),
+      empInp,pwInp,errDiv,
+      Btn("دخول · Login",()=>doLogin(empInp.value,pwInp.value),{style:"width:100%;padding:13px;font-size:16px;border-radius:12px"}),
+      div({style:"margin-top:14px;font-size:10px;color:#94a3b8;line-height:1.8"},ORG_INFO)
+    )
+  );
+}
+
+/* ═══ SIDEBAR ═══ */
+function buildSidebar(){
+  const isAdmin=S.user.role==="admin";
+  const isPM=S.user.role==="pm";
+  const nav=isAdmin
+    ?[["dashboard","لوحة المؤشرات","📊"],["projects","المشاريع","🏗"],["users","إدارة المستخدمين","👥"],["logs","سجل الأحداث","📋"],["reports","التقارير","📈"],["settings","الإعدادات","⚙️"]]
+    :isPM
+      ?[["pm_dash","لوحة مشاريعي","📊"],["my","تحديث المراحل","✏️"]]
+      :[["my","مهامي","✏️"]];
+  const rd=isAdmin?{ar:"المشرف العام",c:"#1B8B8E"}:(ROLES[S.user.role]||{ar:S.user.role,c:"#0284c7"});
+  const sb=div({id:"sidebar",style:"width:230px;min-height:100vh;background:#0F2044;color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto"});
+  sb.appendChild(div({style:"padding:16px 16px 12px;border-bottom:1px solid rgba(255,255,255,.1);text-align:center"},
+    img({src:LOGO_SRC,alt:"MOH",style:"height:52px;object-fit:contain;margin-bottom:8px;background:#fff;border-radius:8px;padding:4px"}),
+    div({style:"font-size:9px;color:rgba(255,255,255,.4);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px"},"وزارة الصحة · MOH"),
+    div({style:"font-size:22px;font-weight:900;color:#fff;letter-spacing:-1px"},APP_NAME_AR),
+    div({style:"font-size:9px;color:rgba(255,255,255,.4);margin-top:1px"},"نظام متابعة المشاريع الصحية"),
+    div({style:"font-size:8px;color:rgba(255,255,255,.25);margin-top:3px;line-height:1.5"},"شمال الشرقية")
+  ));
+  const navDiv=div({style:"padding:14px 10px;flex:1"});
+  nav.forEach(([v,label,icon])=>{
+    const b=btn({style:`display:flex;align-items:center;gap:10px;width:100%;padding:11px 14px;margin-bottom:3px;background:${S.view===v?"rgba(27,139,142,.35)":"transparent"};color:${S.view===v?"#fff":"rgba(255,255,255,.6)"};border:none;border-radius:10px;cursor:pointer;font-size:13px;font-family:Cairo,sans-serif;text-align:right;border-right:${S.view===v?"3px solid #1B8B8E":"3px solid transparent"};transition:all .2s`,
+      onClick:()=>setState({view:v,selProj:null})
+    },span({style:"font-size:18px"},icon),label);
+    navDiv.appendChild(b);
   });
-  const box=div({style:`background:#fff;border-radius:20px;width:100%;max-width:${wide?720:520}px;max-height:94vh;overflow:auto;box-shadow:0 24px 64px rgba(0,0,0,.25)`});
-  const header=div({style:"display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:1px solid #e2e8f0;position:sticky;top:0;background:#fff;z-index:2"},
-    el("b",{style:"color:#0F2044;font-size:16px"},title),
-    btn({style:"border:none;background:#f1f5f9;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center",onClick:closeModal},"×")
-  );
-  const body=div({style:"padding:22px 24px"},content);
-  box.appendChild(header);box.appendChild(body);overlay.appendChild(box);
-  return overlay;
+  sb.appendChild(navDiv);
+  sb.appendChild(div({style:"padding:12px;border-top:1px solid rgba(255,255,255,.1)"},
+    div({style:"background:rgba(255,255,255,.08);border-radius:10px;padding:8px 12px;margin-bottom:8px"},
+      div({style:"font-size:13px;font-weight:700"},S.user.name||rd.ar),
+      div({style:`margin-top:4px;display:inline-block;background:${rd.c}40;color:${rd.c};padding:1px 8px;border-radius:8px;font-size:10px;font-weight:700`},rd.ar)
+    ),
+    btn({style:"width:100%;padding:7px;background:rgba(220,38,38,.18);color:#fca5a5;border:1px solid rgba(220,38,38,.3);border-radius:8px;cursor:pointer;font-size:12px;font-family:Cairo,sans-serif",
+      onClick:()=>{unsubs.forEach(u=>u());unsubs=[];setState({user:null,projects:[],stages:[],users:[],logs:[],view:"dashboard",selProj:null,loginErr:""});}
+    },"🚪 تسجيل خروج")
+  ));
+  return sb;
 }
 
-/* ══════════════════════════════════════════
-   KPI GAUGE
-══════════════════════════════════════════ */
+/* ═══ MODAL WRAPPER ═══ */
+function ModalEl(title,content,wide=false){
+  const ov=div({style:"position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px;direction:rtl",onClick:e=>{if(e.target===ov)closeModal();}});
+  const box=div({style:`background:#fff;border-radius:20px;width:100%;max-width:${wide?720:520}px;max-height:94vh;overflow:auto;box-shadow:0 24px 64px rgba(0,0,0,.25)`});
+  box.appendChild(div({style:"display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:1px solid #e2e8f0;position:sticky;top:0;background:#fff;z-index:2"},
+    el("b",{style:"color:#0F2044;font-size:16px"},title),
+    btn({style:"border:none;background:#f1f5f9;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:18px;color:#64748b;display:flex;align-items:center;justify-content:center;font-family:Cairo,sans-serif",onClick:closeModal},"×")
+  ));
+  box.appendChild(div({style:"padding:22px 24px"},content));
+  ov.appendChild(box);return ov;
+}
+
+/* ═══ KPI GAUGE ═══ */
 function KPIGaugeEl(kpi){
   const actual=Number(kpi.actual||0),target=Number(kpi.target||1);
-  const score=pct(actual,target);
-  const c=score>=80?"#16a34a":score>=50?"#f59e0b":"#dc2626";
+  const score=pct(actual,target);const c=score>=80?"#16a34a":score>=50?"#f59e0b":"#dc2626";
   const rd=ROLES[kpi.responsibleRole||kpi.r]||{ar:"غير محدد",c:"#64748b"};
   return div({style:"background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 2px 12px rgba(0,0,0,.07);text-align:center"},
     div({style:`font-size:11px;font-weight:700;color:${rd.c};margin-bottom:4px`},rd.ar),
-    div({style:"font-size:13px;font-weight:800;color:#0F2044;margin-bottom:10px;line-height:1.3"},kpi.name||kpi.n||""),
+    div({style:"font-size:12px;font-weight:800;color:#0F2044;margin-bottom:10px;line-height:1.3"},kpi.name||kpi.n||""),
     Ring(score,80,c),
     div({style:"margin-top:10px;display:flex;justify-content:center;gap:20px"},
       div(null,div({style:"font-size:10px;color:#94a3b8"},"الفعلي"),div({style:`font-size:16px;font-weight:900;color:${c}`},actual+" "+(kpi.unit||kpi.u||""))),
@@ -353,37 +332,29 @@ function KPIGaugeEl(kpi){
   );
 }
 
-/* ══════════════════════════════════════════
-   PROJECT MODAL
-══════════════════════════════════════════ */
+/* ═══ PROJECT MODAL ═══ */
 function buildProjModal(proj){
-  let d=proj?JSON.parse(JSON.stringify(proj)):{id:"",name:"",location:"",type:"general",startDate:"",plannedEnd:"",budget:"",spent:"",contractor:"",durationMonths:"",pm:{name:"",phone:"",email:""},clinical:{name:"",phone:"",email:""},biomedical:{name:"",phone:"",email:""},it:{name:"",phone:"",email:""},hr:{name:"",phone:"",email:""},kpis:[]};
+  let d=proj?JSON.parse(JSON.stringify(proj)):{id:"",name:"",location:"",type:"general",startDate:"",plannedEnd:"",budget:"",spent:"",contractor:"",durationMonths:"",pm:{name:"",phone:"",email:""},engineering:{name:"",phone:"",email:""},it:{name:"",phone:"",email:""},hr:{name:"",phone:"",email:""},kpis:[]};
   if(!d.kpis)d.kpis=[];
   let tab="info";
-  const tabCont=div({style:"padding:0"});
-  function refreshTabs(){
-    tabCont.innerHTML="";
-    tabCont.appendChild(buildProjTabContent());
-  }
-  function setTab(t){tab=t;refreshTabs();}
-  function setField(k,v){d[k]=v;}
-  function setRole(role,k,v){if(!d[role])d[role]={};d[role][k]=v;}
+  const tabCont=div(null);
+  function refresh(){tabCont.innerHTML="";tabCont.appendChild(buildContent());}
 
-  function buildProjTabContent(){
+  function buildContent(){
     if(tab==="info"){
       return div(null,
-        FldEl("اسم المشروع / المركز الصحي",inp({style:INP,value:d.name,onInput:e=>setField("name",e.target.value),placeholder:"اسم المشروع..."})),
+        FldEl("اسم المشروع / المركز الصحي",inp({style:INP,value:d.name,onInput:e=>d.name=e.target.value,placeholder:"اسم المشروع..."})),
         div({style:"display:flex;gap:12px;flex-wrap:wrap"},
-          FldEl("الموقع",inp({style:INP,value:d.location||"",onInput:e=>setField("location",e.target.value)}),true),
-          FldEl("المقاول",inp({style:INP,value:d.contractor||"",onInput:e=>setField("contractor",e.target.value)}),true)
+          FldEl("الموقع",inp({style:INP,value:d.location||"",onInput:e=>d.location=e.target.value}),true),
+          FldEl("المقاول",inp({style:INP,value:d.contractor||"",onInput:e=>d.contractor=e.target.value}),true)
         ),
         div({style:"display:flex;gap:12px;flex-wrap:wrap"},
-          FldEl("تاريخ البدء",inp({type:"date",style:INP,value:d.startDate||"",onInput:e=>setField("startDate",e.target.value)}),true),
-          FldEl("تاريخ الإنجاز المخطط",inp({type:"date",style:INP,value:d.plannedEnd||"",onInput:e=>setField("plannedEnd",e.target.value)}),true)
+          FldEl("تاريخ البدء",inp({type:"date",style:INP,value:d.startDate||"",onInput:e=>d.startDate=e.target.value}),true),
+          FldEl("تاريخ الإنجاز المخطط",inp({type:"date",style:INP,value:d.plannedEnd||"",onInput:e=>d.plannedEnd=e.target.value}),true)
         ),
         div({style:"display:flex;gap:12px;flex-wrap:wrap"},
-          FldEl("الميزانية المعتمدة (ر.ع)",inp({type:"number",style:INP,value:d.budget||"",onInput:e=>setField("budget",e.target.value)}),true),
-          FldEl("المدة (شهور)",inp({type:"number",style:INP,value:d.durationMonths||"",onInput:e=>setField("durationMonths",e.target.value)}),true)
+          FldEl("الميزانية المعتمدة (ر.ع)",inp({type:"number",style:INP,value:d.budget||"",onInput:e=>d.budget=e.target.value}),true),
+          FldEl("المدة (شهور)",inp({type:"number",style:INP,value:d.durationMonths||"",onInput:e=>d.durationMonths=e.target.value}),true)
         )
       );
     }
@@ -393,571 +364,400 @@ function buildProjModal(proj){
           div({style:`font-size:12px;font-weight:700;color:${rd.c};margin-bottom:8px`},rd.ar+" / "+rd.en),
           div({style:"display:flex;gap:10px;flex-wrap:wrap"},
             ...[["الاسم","name"],["الهاتف","phone"],["البريد","email"]].map(([l,k])=>
-              div({style:"flex:1;min-width:100px"},
-                lbl({style:"font-size:11px;color:#64748b;display:block;margin-bottom:3px"},l),
-                inp({style:INP+"font-size:13px;",value:(d[role]||{})[k]||"",onInput:e=>setRole(role,k,e.target.value)})
-              )
+              div({style:"flex:1;min-width:100px"},lbl({style:"font-size:11px;color:#64748b;display:block;margin-bottom:3px"},l),inp({style:INP+"font-size:13px;",value:(d[role]||{})[k]||"",onInput:e=>{if(!d[role])d[role]={};d[role][k]=e.target.value;}}))
             )
           )
         )
       ));
     }
-    if(tab==="kpis"){
-      const templates=(KPI_TPL[d.type]||KPI_TPL.general);
-      const cont=div(null,
-        div({style:"margin-bottom:12px"},
-          div({style:"font-size:12px;font-weight:700;color:#374151;margin-bottom:8px"},"📌 اقتراحات حسب نوع المشروع:"),
-          div({style:"display:flex;flex-wrap:wrap;gap:6px"},
-            ...templates.map(t=>{
-              const added=d.kpis.some(k=>k.name===t.n);
-              return btn({
-                style:`padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;border:1.5px solid ${added?"#d1d5db":"#1B8B8E"};background:${added?"#f1f5f9":"#f0fdfa"};color:${added?"#94a3b8":"#0f766e"};cursor:${added?"default":"pointer"};font-family:Cairo,sans-serif`,
-                onClick:added?null:()=>{if(!d.kpis.some(k=>k.name===t.n)){d.kpis.push({id:uid(),name:t.n,unit:t.u,target:t.t,responsibleRole:t.r,actual:0});refreshTabs();}}
-              },(added?"✅ ":"")+t.n);
-            })
-          )
-        ),
-        ...d.kpis.map((k,i)=>
-          div({style:"background:#f8fafc;border-radius:10px;padding:12px 14px;margin-bottom:8px;border:1px solid #e2e8f0"},
-            div({style:"display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"},
-              span({style:"font-size:12px;font-weight:700;color:#0F2044"},"مؤشر "+(i+1)),
-              Btn("× حذف",()=>{d.kpis=d.kpis.filter(x=>x.id!==k.id);refreshTabs();},{clr:"#fee2e2",tc:"#b91c1c",sm:true})
-            ),
-            div({style:"display:flex;flex-wrap:wrap;gap:10px"},
-              div({style:"flex:1 1 180px"},lbl({style:"font-size:11px;color:#64748b;display:block;margin-bottom:3px"},"اسم المؤشر"),inp({style:INP+"font-size:13px;",value:k.name,onInput:e=>{k.name=e.target.value;}})),
-              div({style:"flex:1 1 70px"},lbl({style:"font-size:11px;color:#64748b;display:block;margin-bottom:3px"},"الوحدة"),inp({style:INP+"font-size:13px;",value:k.unit||"%",onInput:e=>{k.unit=e.target.value;}})),
-              div({style:"flex:1 1 70px"},lbl({style:"font-size:11px;color:#64748b;display:block;margin-bottom:3px"},"الهدف"),inp({type:"number",style:INP+"font-size:13px;",value:k.target,onInput:e=>{k.target=e.target.value;}})),
-              div({style:"flex:1 1 150px"},lbl({style:"font-size:11px;color:#64748b;display:block;margin-bottom:3px"},"الجهة المسؤولة"),
-                mkSel(INP+"font-size:13px;",e=>k.responsibleRole=e.target.value,...Object.entries(ROLES).map(([v,r])=>opt(v,r.ar,k.responsibleRole===v)))
-              )
-            )
-          )
-        ),
-        Btn("+ إضافة مؤشر مخصص",()=>{d.kpis.push({id:uid(),name:"",unit:"%",target:100,responsibleRole:"pm",actual:0});refreshTabs();},{clr:"#1B8B8E",style:"margin-top:4px"})
-      );
-      return cont;
-    }
+    // KPIs
+    const templates=KPI_TPL[d.type]||KPI_TPL.general;
+    return div(null,
+      div({style:"margin-bottom:12px"},
+        div({style:"font-size:12px;font-weight:700;color:#374151;margin-bottom:8px"},"📌 اقتراحات حسب نوع المشروع:"),
+        div({style:"display:flex;flex-wrap:wrap;gap:6px"},
+          ...templates.map(t=>{const added=d.kpis.some(k=>k.name===t.n);return btn({style:`padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;border:1.5px solid ${added?"#d1d5db":"#1B8B8E"};background:${added?"#f1f5f9":"#f0fdfa"};color:${added?"#94a3b8":"#0f766e"};cursor:${added?"default":"pointer"};font-family:Cairo,sans-serif`,onClick:added?null:()=>{d.kpis.push({id:uid(),name:t.n,unit:t.u,target:t.t,responsibleRole:t.r,actual:0});refresh();}},(added?"✅ ":"")+t.n);})
+        )
+      ),
+      ...d.kpis.map((k,i)=>div({style:"background:#f8fafc;border-radius:10px;padding:12px 14px;margin-bottom:8px;border:1px solid #e2e8f0"},
+        div({style:"display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"},span({style:"font-size:12px;font-weight:700;color:#0F2044"},"مؤشر "+(i+1)),Btn("× حذف",()=>{d.kpis=d.kpis.filter(x=>x.id!==k.id);refresh();},{clr:"#fee2e2",tc:"#b91c1c",sm:true})),
+        div({style:"display:flex;flex-wrap:wrap;gap:10px"},
+          div({style:"flex:1 1 180px"},lbl({style:"font-size:11px;color:#64748b;display:block;margin-bottom:3px"},"اسم المؤشر"),inp({style:INP+"font-size:13px;",value:k.name,onInput:e=>k.name=e.target.value})),
+          div({style:"flex:1 1 70px"},lbl({style:"font-size:11px;color:#64748b;display:block;margin-bottom:3px"},"الوحدة"),inp({style:INP+"font-size:13px;",value:k.unit||"%",onInput:e=>k.unit=e.target.value})),
+          div({style:"flex:1 1 70px"},lbl({style:"font-size:11px;color:#64748b;display:block;margin-bottom:3px"},"الهدف"),inp({type:"number",style:INP+"font-size:13px;",value:k.target,onInput:e=>k.target=e.target.value})),
+          div({style:"flex:1 1 150px"},lbl({style:"font-size:11px;color:#64748b;display:block;margin-bottom:3px"},"الجهة المسؤولة"),mkSel(INP+"font-size:13px;",e=>k.responsibleRole=e.target.value,...Object.entries(ROLES).map(([v,r])=>opt(v,r.ar,k.responsibleRole===v))))
+        )
+      )),
+      Btn("+ إضافة مؤشر مخصص",()=>{d.kpis.push({id:uid(),name:"",unit:"%",target:100,responsibleRole:"pm",actual:0});refresh();},{clr:"#1B8B8E",style:"margin-top:4px"})
+    );
   }
 
-  const typeBar=div({style:"display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap"},
-    ...PTYPES.map(t=>btn({
+  const typeBarEl=div({style:"display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap"});
+  const tabBarEl=div({style:"display:flex;border-bottom:1px solid #e2e8f0;margin-bottom:16px"});
+
+  function rebuildTypeBar(){
+    typeBarEl.innerHTML="";
+    PTYPES.forEach(t=>typeBarEl.appendChild(btn({
       style:`display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:10px;border:2px solid ${d.type===t.v?t.c:"#e2e8f0"};background:${d.type===t.v?t.c+"18":"#f8fafc"};cursor:pointer;font-size:12px;font-weight:700;color:${d.type===t.v?t.c:"#64748b"};font-family:Cairo,sans-serif`,
-      onClick:()=>{d.type=t.v;/* re-render type bar */}
-    },t.icon," ",t.ar))
-  );
+      onClick:()=>{d.type=t.v;rebuildTypeBar();refresh();}
+    },t.icon," ",t.ar)));
+  }
 
-  const tabBar=div({style:"display:flex;border-bottom:1px solid #e2e8f0;margin-bottom:16px"},
-    TabBtn("المعلومات الأساسية",tab==="info",()=>setTab("info")),
-    TabBtn("الجهات المعنية",tab==="stakeholders",()=>setTab("stakeholders")),
-    TabBtn("مؤشرات KPI",tab==="kpis",()=>setTab("kpis"))
-  );
+  function rebuildTabBar(){
+    tabBarEl.innerHTML="";
+    [["info","المعلومات"],["stakeholders","الجهات المعنية"],["kpis","مؤشرات KPI"]].forEach(([v,label])=>{
+      tabBarEl.appendChild(TabBtn(label,tab===v,()=>{tab=v;rebuildTabBar();refresh();}));
+    });
+  }
 
-  refreshTabs();
-
-  const footer=div({style:"display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0"},
-    Btn("إلغاء",closeModal,{clr:"#f1f5f9",tc:"#374151"}),
-    Btn("💾 حفظ المشروع",()=>{if(!d.name){alert("أدخل اسم المشروع");return;}if(!d.id)d.id=uid();saveProject(d);},{})
-  );
-
-  const content=div(null,typeBar,tabBar,tabCont,footer);
-  return ModalEl(proj?"تعديل المشروع":"مشروع جديد",content,true);
+  rebuildTypeBar();
+  rebuildTabBar();
+  refresh();
+  return ModalEl(proj?"تعديل المشروع":"مشروع جديد",div(null,typeBarEl,tabBarEl,tabCont,div({style:"display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0"},Btn("إلغاء",closeModal,{clr:"#f1f5f9",tc:"#374151"}),Btn("💾 حفظ المشروع",()=>{if(!d.name){alert("أدخل اسم المشروع");return;}if(!d.id)d.id=uid();saveProject(d);},{}))),true);
 }
 
-/* ══════════════════════════════════════════
-   STAGE MODAL
-══════════════════════════════════════════ */
+/* ═══ STAGE MODAL ═══ */
 function buildStageModal(stage,projectId){
   let d=stage?JSON.parse(JSON.stringify(stage)):{id:"",projectId,name:"",startDate:"",endDate:"",status:"not_started",completionPct:0,responsibleRole:"pm",notes:"",tasks:[]};
   if(!d.tasks)d.tasks=[];
-  let tab="info";
-  const tabCont=div(null);
+  let tab="info";const tabCont=div(null);
   function refresh(){tabCont.innerHTML="";tabCont.appendChild(buildContent());}
   function buildContent(){
-    if(tab==="info"){
-      return div(null,
-        FldEl("اسم المرحلة",inp({style:INP,value:d.name,onInput:e=>d.name=e.target.value,placeholder:"وصف المرحلة..."})),
-        div({style:"display:flex;gap:12px"},
-          FldEl("تاريخ البدء",inp({type:"date",style:INP,value:d.startDate||"",onInput:e=>d.startDate=e.target.value}),true),
-          FldEl("تاريخ الانتهاء",inp({type:"date",style:INP,value:d.endDate||"",onInput:e=>d.endDate=e.target.value}),true)
-        ),
-        div({style:"display:flex;gap:12px"},
-          FldEl("الحالة",mkSel(INP,e=>d.status=e.target.value,...STATS.map(st=>opt(st.v,st.ar,d.status===st.v))),true),
-          FldEl("نسبة الإنجاز %",inp({type:"number",min:0,max:100,style:INP,value:d.completionPct,onInput:e=>d.completionPct=Math.min(100,+e.target.value)}),true)
-        ),
-        FldEl("الجهة المسؤولة",mkSel(INP,e=>d.responsibleRole=e.target.value,...Object.entries(ROLES).map(([k,r])=>opt(k,r.ar+" / "+r.en,d.responsibleRole===k)))),
-        FldEl("ملاحظات",ta({style:INP+"min-height:68px;resize:vertical;",value:d.notes||"",onInput:e=>d.notes=e.target.value}))
-      );
-    }
-    // tasks tab
+    if(tab==="info")return div(null,
+      FldEl("اسم المرحلة",inp({style:INP,value:d.name,onInput:e=>d.name=e.target.value,placeholder:"وصف المرحلة..."})),
+      div({style:"display:flex;gap:12px"},
+        FldEl("تاريخ البدء",inp({type:"date",style:INP,value:d.startDate||"",onInput:e=>d.startDate=e.target.value}),true),
+        FldEl("تاريخ الانتهاء",inp({type:"date",style:INP,value:d.endDate||"",onInput:e=>d.endDate=e.target.value}),true)
+      ),
+      div({style:"display:flex;gap:12px"},
+        FldEl("الحالة",mkSel(INP,e=>d.status=e.target.value,...STATS.map(s=>opt(s.v,s.ar,d.status===s.v))),true),
+        FldEl("نسبة الإنجاز %",inp({type:"number",min:0,max:100,style:INP,value:d.completionPct,onInput:e=>d.completionPct=Math.min(100,+e.target.value)}),true)
+      ),
+      FldEl("الجهة المسؤولة",mkSel(INP,e=>d.responsibleRole=e.target.value,...Object.entries(ROLES).map(([k,r])=>opt(k,r.ar+" / "+r.en,d.responsibleRole===k)))),
+      FldEl("ملاحظات",ta({style:INP+"min-height:68px;resize:vertical;",value:d.notes||"",onInput:e=>d.notes=e.target.value}))
+    );
     return div(null,
       d.tasks.length===0?div({style:"text-align:center;padding:14px 0;color:#94a3b8;font-size:12px"},"لا توجد مهام — اضغط إضافة"):
-      div(null,...d.tasks.map((t,i)=>
-        div({style:"background:#f8fafc;border-radius:10px;padding:11px 13px;margin-bottom:7px;border:1px solid #e2e8f0"},
-          div({style:"display:flex;justify-content:space-between;margin-bottom:8px"},
-            span({style:"font-size:11px;font-weight:700;color:#0F2044"},"مهمة "+(i+1)),
-            Btn("× حذف",()=>{d.tasks=d.tasks.filter(x=>x.id!==t.id);refresh();},{clr:"#fee2e2",tc:"#b91c1c",sm:true})
-          ),
-          div({style:"display:flex;flex-wrap:wrap;gap:8px"},
-            div({style:"flex:1 1 200px"},lbl({style:"font-size:11px;color:#64748b;display:block;margin-bottom:3px"},"عنوان المهمة"),inp({style:INP+"font-size:13px;",value:t.title,onInput:e=>t.title=e.target.value})),
-            div({style:"flex:1 1 140px"},lbl({style:"font-size:11px;color:#64748b;display:block;margin-bottom:3px"},"المسؤول"),
-              mkSel(INP+"font-size:13px;",e=>t.assignedRole=e.target.value,...Object.entries(ROLES).map(([v,r])=>opt(v,r.ar,t.assignedRole===v)))
-            ),
-            div({style:"flex:1 1 120px"},lbl({style:"font-size:11px;color:#64748b;display:block;margin-bottom:3px"},"تاريخ الاستحقاق"),inp({type:"date",style:INP+"font-size:13px;",value:t.dueDate||"",onInput:e=>t.dueDate=e.target.value})),
-            div({style:"flex:1 1 100px"},lbl({style:"font-size:11px;color:#64748b;display:block;margin-bottom:3px"},"الأولوية"),
-              mkSel(INP+"font-size:13px;",e=>t.priority=e.target.value,opt("high","عالية 🔴",t.priority==="high"),opt("normal","عادية 🟡",t.priority==="normal"||!t.priority),opt("low","منخفضة 🟢",t.priority==="low"))
-            )
-          )
+      div(null,...d.tasks.map((t,i)=>div({style:"background:#f8fafc;border-radius:10px;padding:11px 13px;margin-bottom:7px;border:1px solid #e2e8f0"},
+        div({style:"display:flex;justify-content:space-between;margin-bottom:8px"},span({style:"font-size:11px;font-weight:700;color:#0F2044"},"مهمة "+(i+1)),Btn("× حذف",()=>{d.tasks=d.tasks.filter(x=>x.id!==t.id);refresh();},{clr:"#fee2e2",tc:"#b91c1c",sm:true})),
+        div({style:"display:flex;flex-wrap:wrap;gap:8px"},
+          div({style:"flex:1 1 200px"},lbl({style:"font-size:11px;color:#64748b;display:block;margin-bottom:3px"},"عنوان المهمة"),inp({style:INP+"font-size:13px;",value:t.title,onInput:e=>t.title=e.target.value})),
+          div({style:"flex:1 1 140px"},lbl({style:"font-size:11px;color:#64748b;display:block;margin-bottom:3px"},"المسؤول"),mkSel(INP+"font-size:13px;",e=>t.assignedRole=e.target.value,...Object.entries(ROLES).map(([v,r])=>opt(v,r.ar,t.assignedRole===v)))),
+          div({style:"flex:1 1 120px"},lbl({style:"font-size:11px;color:#64748b;display:block;margin-bottom:3px"},"تاريخ الاستحقاق"),inp({type:"date",style:INP+"font-size:13px;",value:t.dueDate||"",onInput:e=>t.dueDate=e.target.value})),
+          div({style:"flex:1 1 100px"},lbl({style:"font-size:11px;color:#64748b;display:block;margin-bottom:3px"},"الأولوية"),mkSel(INP+"font-size:13px;",e=>t.priority=e.target.value,opt("high","عالية 🔴",t.priority==="high"),opt("normal","عادية 🟡",t.priority==="normal"||!t.priority),opt("low","منخفضة 🟢",t.priority==="low")))
         )
-      )),
+      ))),
       Btn("+ إضافة مهمة فرعية",()=>{d.tasks.push({id:uid(),title:"",assignedRole:"pm",status:"pending",dueDate:"",priority:"normal",notes:""});refresh();},{clr:"#1B8B8E",style:"margin-top:4px"})
     );
   }
   refresh();
-  const tabBar=div({style:"display:flex;border-bottom:1px solid #e2e8f0;margin-bottom:16px"},
-    TabBtn("معلومات المرحلة",tab==="info",()=>{tab="info";refresh();}),
-    TabBtn("المهام الفرعية ("+d.tasks.length+")",tab==="tasks",()=>{tab="tasks";refresh();})
-  );
-  const footer=div({style:"display:flex;gap:10px;justify-content:flex-end;margin-top:16px"},
-    Btn("إلغاء",closeModal,{clr:"#f1f5f9",tc:"#374151"}),
-    Btn("💾 حفظ",()=>{if(!d.name){alert("أدخل اسم المرحلة");return;}if(!d.id)d.id=uid();saveStage(d);},{})
-  );
-  return ModalEl(stage?"تعديل مرحلة":"إضافة مرحلة",div(null,tabBar,tabCont,footer),true);
+  return ModalEl(stage?"تعديل مرحلة":"إضافة مرحلة",div(null,
+    div({style:"display:flex;border-bottom:1px solid #e2e8f0;margin-bottom:16px"},TabBtn("معلومات المرحلة",tab==="info",()=>{tab="info";refresh();}),TabBtn("المهام الفرعية ("+d.tasks.length+")",tab==="tasks",()=>{tab="tasks";refresh();})),
+    tabCont,
+    div({style:"display:flex;gap:10px;justify-content:flex-end;margin-top:16px"},Btn("إلغاء",closeModal,{clr:"#f1f5f9",tc:"#374151"}),Btn("💾 حفظ",()=>{if(!d.name){alert("أدخل اسم المرحلة");return;}if(!d.id)d.id=uid();saveStage(d);},{}))
+  ),true);
 }
 
-/* ══════════════════════════════════════════
-   USER MODAL
-══════════════════════════════════════════ */
-function buildUserModal(){
-  let d={id:"",code:"",role:"pm",name:"",phone:"",projectIds:[]};
+/* ═══ USER MODAL ═══ */
+function buildUserModal(existing){
+  let d=existing?JSON.parse(JSON.stringify(existing)):{id:"",empId:"",name:"",role:"pm",phone:"",password:"",projectIds:[],permissions:{canAddProjects:false,canAddStages:true,canDeleteProjects:false,canDeleteStages:false}};
+  if(!d.permissions)d.permissions={canAddProjects:false,canAddStages:true,canDeleteProjects:false,canDeleteStages:false};
+  const isEdit=!!existing;
   const cont=div(null);
-  function refresh(){cont.innerHTML="";cont.appendChild(buildContent());}
-  function buildContent(){
-    return div(null,
-      FldEl("الاسم الكامل",inp({style:INP,value:d.name,onInput:e=>d.name=e.target.value})),
-      div({style:"display:flex;gap:12px"},
-        FldEl("الدور",mkSel(INP,e=>d.role=e.target.value,...Object.entries(ROLES).map(([k,r])=>opt(k,r.ar,d.role===k))),true),
-        FldEl("الهاتف",inp({style:INP,value:d.phone,onInput:e=>d.phone=e.target.value}),true)
-      ),
-      FldEl("رمز الدخول",div({style:"display:flex;gap:8px"},
-        inp({style:INP+"flex:1;letter-spacing:2px;font-weight:700;",value:d.code,onInput:e=>d.code=e.target.value.toUpperCase(),placeholder:"أدخل أو اضغط توليد..."}),
-        Btn("🎲 توليد",()=>{d.code=d.role.slice(0,2).toUpperCase()+"-"+Math.random().toString(36).slice(2,8).toUpperCase();refresh();},{clr:"#0284c7"})
-      )),
-      FldEl("المشاريع المخصصة",div({style:"max-height:150px;overflow-y:auto;border:1.5px solid #d1d5db;border-radius:8px;padding:8px"},
-        STATE.projects.length===0?div({style:"font-size:12px;color:#94a3b8;text-align:center;padding:12px"},"لا توجد مشاريع بعد"):
-        div(null,...STATE.projects.map(pp=>{
-          const pt=gpt(pp.type);
-          const cb=inp({type:"checkbox",checked:d.projectIds.includes(pp.id)});
-          cb.addEventListener("change",()=>{d.projectIds=d.projectIds.includes(pp.id)?d.projectIds.filter(x=>x!==pp.id):[...d.projectIds,pp.id];});
-          return lbl({style:`display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer;border-radius:6px;background:${d.projectIds.includes(pp.id)?"#dbeafe":"transparent"};margin-bottom:2px`},cb,span({style:"font-size:13px;font-weight:600"},pt.icon+" "+pp.name),span({style:"font-size:11px;color:#94a3b8"},pp.location||""));
-        }))
-      )),
-      div({style:"display:flex;gap:10px;justify-content:flex-end;margin-top:16px"},
-        Btn("إلغاء",closeModal,{clr:"#f1f5f9",tc:"#374151"}),
-        Btn("💾 حفظ",()=>{if(!d.name||!d.code){alert("أدخل الاسم والرمز");return;}d.id=uid();saveUser(d);},{})
-      )
-    );
+  function renderContent(){
+    cont.innerHTML="";
+    const wrap=div(null);
+    const r1=div({style:"display:flex;gap:12px;flex-wrap:wrap"});
+    r1.appendChild(FldEl("الرقم الوظيفي *",inp({style:INP,value:d.empId,placeholder:"12345",onInput:e=>d.empId=e.target.value.trim()}),true));
+    r1.appendChild(FldEl("الاسم الكامل *",inp({style:INP,value:d.name,onInput:e=>d.name=e.target.value}),true));
+    wrap.appendChild(r1);
+    const r2=div({style:"display:flex;gap:12px;flex-wrap:wrap"});
+    r2.appendChild(FldEl("الدور الوظيفي",mkSel(INP,e=>d.role=e.target.value,...Object.entries(ROLES).map(([k,r])=>opt(k,r.ar,d.role===k))),true));
+    r2.appendChild(FldEl("رقم الهاتف",inp({style:INP,value:d.phone||"",onInput:e=>d.phone=e.target.value}),true));
+    wrap.appendChild(r2);
+    const pwWrap=div({style:"display:flex;gap:8px;align-items:flex-end"});
+    const pwInp=inp({style:INP+"flex:1;",type:"text",value:d.password,placeholder:"كلمة المرور...",onInput:e=>d.password=e.target.value});
+    pwWrap.appendChild(pwInp);
+    pwWrap.appendChild(Btn("🎲 توليد",()=>{d.password=Math.random().toString(36).slice(2,8).toUpperCase();pwInp.value=d.password;},{clr:"#0284c7",sm:true}));
+    wrap.appendChild(FldEl("كلمة المرور *",pwWrap));
+    wrap.appendChild(div({style:"margin-bottom:4px;font-size:12px;font-weight:700;color:#374151"},"المشاريع المخصصة"));
+    const projBox=div({style:"max-height:160px;overflow-y:auto;border:1.5px solid #d1d5db;border-radius:8px;padding:8px;margin-bottom:13px"});
+    if(S.projects.length===0){projBox.appendChild(div({style:"font-size:12px;color:#94a3b8;text-align:center;padding:12px"},"لا توجد مشاريع — أضف مشاريع أولاً"));}
+    else{S.projects.forEach(pp=>{const pt=gpt(pp.type);const isChecked=d.projectIds.includes(pp.id);const cb=inp({type:"checkbox",checked:isChecked});cb.addEventListener("change",()=>{if(cb.checked){if(!d.projectIds.includes(pp.id))d.projectIds.push(pp.id);}else{d.projectIds=d.projectIds.filter(x=>x!==pp.id);}});projBox.appendChild(lbl({style:"display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:6px;margin-bottom:3px"},cb,span({style:"font-size:13px;font-weight:600"},pt.icon+" "+pp.name),span({style:"font-size:11px;color:#94a3b8"},pp.location||"")));});}
+    wrap.appendChild(projBox);
+    wrap.appendChild(div({style:"margin-bottom:8px;font-size:12px;font-weight:700;color:#374151"},"صلاحيات المستخدم"));
+    const permBox=div({style:"background:#f8fafc;border-radius:10px;padding:12px;border:1px solid #e2e8f0;margin-bottom:13px"});
+    [["canAddProjects","➕ إضافة مشاريع جديدة"],["canAddStages","📋 إضافة مراحل ومهام"],["canDeleteProjects","🗑 حذف المشاريع"],["canDeleteStages","🗑 حذف المراحل"]].forEach(([key,label])=>{const cb=inp({type:"checkbox",checked:!!d.permissions[key]});cb.addEventListener("change",()=>d.permissions[key]=cb.checked);permBox.appendChild(lbl({style:"display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer"},cb,span({style:"font-size:13px;color:#374151"},label)));});
+    wrap.appendChild(permBox);
+    const btnRow=div({style:"display:flex;gap:10px;justify-content:flex-end"});
+    btnRow.appendChild(Btn("إلغاء",closeModal,{clr:"#f1f5f9",tc:"#374151"}));
+    btnRow.appendChild(Btn(isEdit?"💾 حفظ التعديلات":"💾 إضافة المستخدم",()=>{if(!d.empId){alert("أدخل الرقم الوظيفي");return;}if(!d.name){alert("أدخل الاسم");return;}if(!d.password){alert("أدخل كلمة المرور");return;}if(!d.id)d.id=uid();saveUser(d);},{}));
+    wrap.appendChild(btnRow);
+    cont.appendChild(wrap);
   }
-  refresh();
-  return ModalEl("إضافة مستخدم",cont);
+  renderContent();
+  return ModalEl(isEdit?"تعديل: "+existing.name:"إضافة مستخدم جديد",cont,true);
 }
 
-/* ══════════════════════════════════════════
-   UPDATE STAGE MODAL
-══════════════════════════════════════════ */
+/* ═══ UPDATE MODAL ═══ */
 function buildUpdateModal(stage,project,user){
   let d=JSON.parse(JSON.stringify(stage));
   if(!d.tasks)d.tasks=[];
-  let spent=project.spent||"";
+  let spent=String(project.spent||"");
   const st=gst(d.status);
   const myTasks=d.tasks.filter(t=>t.assignedRole===user.role);
 
-  const spentInfo=div({style:"font-size:11px;color:#16a34a;margin-top:4px"},(project.budget>0?"نسبة الصرف: "+pct(spent,project.budget)+"% من "+fmt(project.budget)+" ر.ع":""));
-  function updateSpentInfo(){spentInfo.textContent=project.budget>0?"نسبة الصرف: "+pct(spent,project.budget)+"% من "+fmt(project.budget)+" ر.ع":"";}
+  const wrap=div({style:"direction:rtl"});
 
-  const content=div(null,
-    div({style:`background:#f8fafc;border-radius:10px;padding:12px 14px;margin-bottom:16px;border-right:3px solid ${st.c}`},
-      div({style:"font-size:11px;color:#64748b"},"المشروع"),
-      div({style:"font-size:16px;font-weight:800;color:#0F2044"},project.name),
-      div({style:"font-size:12px;color:#64748b;margin-top:2px"},"المرحلة: "+stage.name)
-    ),
-    div({style:"display:flex;gap:12px"},
-      FldEl("الحالة",mkSel(INP,e=>d.status=e.target.value,...STATS.map(st2=>opt(st2.v,st2.ar,d.status===st2.v))),true),
-      FldEl("نسبة الإنجاز %",inp({type:"number",min:0,max:100,style:INP,value:d.completionPct,onInput:e=>d.completionPct=Math.min(100,+e.target.value)}),true)
-    ),
-    FldEl("تاريخ الإنجاز الفعلي",inp({type:"date",style:INP,value:d.actualEnd||"",onInput:e=>d.actualEnd=e.target.value})),
-    FldEl("ملاحظات",ta({style:INP+"min-height:68px;resize:vertical;",value:d.notes||"",onInput:e=>d.notes=e.target.value})),
-    myTasks.length>0?div(null,
-      SectionEl("📌 مهامك الفرعية ("+myTasks.length+")"),
-      ...myTasks.map(t=>{
-        const ts=gtst(t.status);const od=overdue(t.dueDate)&&t.status!=="done";
-        return div({style:`background:${od?"#fff5f5":"#f8fafc"};border-radius:10px;padding:10px 12px;margin-bottom:7px;border:1px solid ${od?"#fecaca":"#e2e8f0"}`},
-          div({style:"display:flex;justify-content:space-between;align-items:center;gap:8px"},
-            div(null,
-              div({style:"font-size:13px;font-weight:700;color:#1e293b"},(t.priority==="high"?"🔴 ":t.priority==="low"?"🟢 ":"🟡 ")+t.title),
-              t.dueDate?div({style:`font-size:11px;color:${od?"#dc2626":"#64748b"};margin-top:2px`},"📅 "+t.dueDate+(od?" ⚠️ متأخرة":"")):null,
-              t.notes?div({style:"font-size:11px;color:#94a3b8"},t.notes):null
-            ),
-            mkSel(`${INP}width:auto;font-size:12px;padding:4px 8px;background:${ts.bg};color:${ts.c};font-weight:700;border:none;`,e=>{t.status=e.target.value;t.updatedAt=new Date().toISOString();},...TSTATS.map(st3=>opt(st3.v,st3.ar,t.status===st3.v)))
-          )
-        );
-      })
-    ):null,
-    user.role==="pm"?div({style:"margin-top:8px;padding:14px 16px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0"},
-      div({style:"font-size:12px;font-weight:800;color:#15803d;margin-bottom:10px"},"💰 التحديث المالي (مدير المشروع)"),
-      FldEl("المصروف الفعلي (ر.ع)",inp({type:"number",style:INP,value:spent,onInput:e=>{spent=e.target.value;updateSpentInfo();}})),
-      spentInfo
-    ):null,
-    div({style:"display:flex;gap:10px;justify-content:flex-end;margin-top:18px"},
-      Btn("إلغاء",closeModal,{clr:"#f1f5f9",tc:"#374151"}),
-      Btn("✅ حفظ التحديث",()=>{
-        d.updatedAt=new Date().toISOString();
-        const fin=user.role==="pm"?{spent}:null;
-        updateStage(d,fin,project.id);
-      },{clr:"#16a34a"})
-    )
-  );
-  return ModalEl("تحديث المرحلة",content,true);
-}
-
-/* ══════════════════════════════════════════
-   VIEWS
-══════════════════════════════════════════ */
-function buildLogin(){
-  const codeInp=inp({type:"password",placeholder:"أدخل رمز الدخول / Enter access code",style:INP+"text-align:center;letter-spacing:4px;font-size:17px;margin-bottom:10px;padding:13px;",onKeydown:e=>{if(e.key==="Enter")doLogin(codeInp.value);}});
-  const errDiv=div({style:"display:none;color:#dc2626;font-size:12px;margin-bottom:10px;background:#fee2e2;padding:8px 12px;border-radius:8px"});
-  if(STATE.loginErr){errDiv.textContent=STATE.loginErr;errDiv.style.display="";}
-  return div({style:"min-height:100vh;background:linear-gradient(145deg,#0F2044 0%,#1a4a6e 50%,#1B8B8E 100%);display:flex;align-items:center;justify-content:center;padding:16px"},
-    div({className:"fi",style:"background:#fff;border-radius:24px;padding:44px 40px;width:100%;max-width:420px;box-shadow:0 28px 72px rgba(0,0,0,.35);text-align:center"},
-      div({style:"width:84px;height:84px;border-radius:50%;background:linear-gradient(135deg,#0F2044,#1B8B8E);margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:38px;box-shadow:0 8px 24px rgba(15,32,68,.3)"},"🏥"),
-      div({style:"font-size:10px;letter-spacing:3px;color:#94a3b8;text-transform:uppercase;margin-bottom:6px"},"وزارة الصحة · Ministry of Health"),
-      h1({style:"font-size:22px;color:#0F2044;margin:0 0 4px;font-weight:900"},"نظام متابعة المشاريع"),
-      p({style:"color:#64748b;font-size:12px;margin:0 0 28px;line-height:1.6"},"Project Tracking System v3","Firebase Edition"),
-      codeInp,errDiv,
-      Btn("دخول · Login",()=>doLogin(codeInp.value),{style:"width:100%;padding:13px;font-size:16px;border-radius:12px"}),
-      div({style:"margin-top:20px;padding:12px 16px;background:#f0f9ff;border-radius:12px;text-align:right;border:1px solid #bae6fd"},
-        div({style:"font-size:10px;color:#0369a1;font-weight:700;margin-bottom:3px"},"💡 رمز المشرف الافتراضي"),
-        code({style:"font-size:15px;color:#0F2044;font-weight:800;letter-spacing:2px"},ADMIN)
-      )
-    )
-  );
-}
-
-function buildSidebar(){
-  const isAdmin=STATE.user.role==="admin";
-  const nav=isAdmin?[["dashboard","لوحة المؤشرات","📊"],["projects","المشاريع","🏗"],["users","المستخدمون","👥"]]:[["my","مهامي","✏️"]];
-  const rd=isAdmin?{ar:"المشرف العام",c:"#1B8B8E"}:(ROLES[STATE.user.role]||{ar:STATE.user.role,c:"#0284c7"});
-  const sb=div({style:"width:230px;min-height:100vh;background:#0F2044;color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto"});
-  sb.appendChild(div({style:"padding:24px 16px 18px;border-bottom:1px solid rgba(255,255,255,.1);text-align:center"},
-    div({style:"font-size:36px;margin-bottom:6px"},"🏥"),
-    div({style:"font-size:9px;color:rgba(255,255,255,.4);letter-spacing:2px;text-transform:uppercase"},"وزارة الصحة · MOH"),
-    div({style:"font-size:13px;font-weight:800;margin-top:4px"},"نظام متابعة المشاريع"),
-    div({style:"font-size:9px;color:rgba(255,255,255,.3);margin-top:1px"},"Project Tracking v3 · Firebase")
+  // Project/stage info
+  wrap.appendChild(div({style:`background:#f8fafc;border-radius:10px;padding:12px 14px;margin-bottom:16px;border-right:3px solid ${st.c}`},
+    div({style:"font-size:11px;color:#64748b"},"المشروع"),
+    div({style:"font-size:16px;font-weight:800;color:#0F2044"},project.name||""),
+    div({style:"font-size:12px;color:#64748b;margin-top:2px"},"المرحلة: "+(stage.name||""))
   ));
-  const navDiv=div({style:"padding:14px 10px;flex:1"});
-  nav.forEach(([v,label,icon])=>{
-    const b=btn({style:`display:flex;align-items:center;gap:10px;width:100%;padding:11px 14px;margin-bottom:3px;background:${STATE.view===v?"rgba(27,139,142,.35)":"transparent"};color:${STATE.view===v?"#fff":"rgba(255,255,255,.6)"};border:none;border-radius:10px;cursor:pointer;font-size:14px;font-family:Cairo,sans-serif;text-align:right;border-right:${STATE.view===v?"3px solid #1B8B8E":"3px solid transparent"};transition:all .2s`,
-      onClick:()=>setState({view:v,selProj:null})
-    },span({style:"font-size:18px"},icon),label);
-    navDiv.appendChild(b);
-  });
-  sb.appendChild(navDiv);
-  sb.appendChild(div({style:"padding:14px 12px;border-top:1px solid rgba(255,255,255,.1)"},
-    div({style:"background:rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;margin-bottom:10px"},
-      div({style:"font-size:13px;font-weight:700"},STATE.user.name||rd.ar),
-      div({style:`margin-top:5px;display:inline-block;background:${rd.c}40;color:${rd.c};padding:1px 8px;border-radius:8px;font-size:10px;font-weight:700`},rd.ar)
-    ),
-    btn({style:"width:100%;padding:8px;background:rgba(220,38,38,.18);color:#fca5a5;border:1px solid rgba(220,38,38,.3);border-radius:8px;cursor:pointer;font-size:13px;font-family:Cairo,sans-serif",
-      onClick:()=>{unsubs.forEach(u=>u());unsubs=[];setState({user:null,projects:[],stages:[],users:[],view:"dashboard",selProj:null,loginErr:""});}
-    },"🚪 تسجيل خروج")
-  ));
-  return sb;
+
+  // Status + completion row
+  const statusRow=div({style:"display:flex;gap:12px;margin-bottom:13px"});
+  const statusFld=div({style:"width:calc(50% - 8px)"});
+  statusFld.appendChild(lbl({style:"display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:4px"},"الحالة"));
+  statusFld.appendChild(mkSel(INP,e=>d.status=e.target.value,...STATS.map(s=>opt(s.v,s.ar,d.status===s.v))));
+  const pctFld=div({style:"width:calc(50% - 8px)"});
+  pctFld.appendChild(lbl({style:"display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:4px"},"نسبة الإنجاز %"));
+  pctFld.appendChild(inp({type:"number",min:0,max:100,style:INP,value:d.completionPct||0,onInput:e=>d.completionPct=Math.min(100,+e.target.value)}));
+  statusRow.appendChild(statusFld);statusRow.appendChild(pctFld);
+  wrap.appendChild(statusRow);
+
+  // Actual end date
+  wrap.appendChild(FldEl("تاريخ الإنجاز الفعلي",inp({type:"date",style:INP,value:d.actualEnd||"",onInput:e=>d.actualEnd=e.target.value})));
+
+  // Notes
+  wrap.appendChild(FldEl("ملاحظات",ta({style:INP+"min-height:68px;resize:vertical;",value:d.notes||"",onInput:e=>d.notes=e.target.value})));
+
+  // My tasks
+  if(myTasks.length>0){
+    wrap.appendChild(SectionEl("📌 مهامك الفرعية ("+myTasks.length+")"));
+    myTasks.forEach(t=>{
+      const ts=gtst(t.status||"pending");
+      const od=!!(overdue(t.dueDate)&&t.status!=="done");
+      const taskDiv=div({style:"background:"+(od?"#fff5f5":"#f8fafc")+";border-radius:10px;padding:10px 12px;margin-bottom:7px;border:1px solid "+(od?"#fecaca":"#e2e8f0")});
+      const row=div({style:"display:flex;justify-content:space-between;align-items:center;gap:8px"});
+      const info=div({style:"flex:1;min-width:0"});
+      const prioIcon=t.priority==="high"?"🔴 ":t.priority==="low"?"🟢 ":"🟡 ";
+      info.appendChild(div({style:"font-size:13px;font-weight:700;color:#1e293b"},prioIcon+(t.title||"مهمة")));
+      if(t.dueDate){
+        const dateDiv=div({style:"font-size:11px;color:"+(od?"#dc2626":"#64748b")+";margin-top:2px"},"📅 "+t.dueDate+(od?" ⚠️ متأخرة":""));
+        info.appendChild(dateDiv);
+      }
+      if(t.notes){info.appendChild(div({style:"font-size:11px;color:#94a3b8;margin-top:2px"},t.notes));}
+      const taskSel=mkSel(INP+"width:auto;font-size:12px;padding:4px 8px;background:"+ts.bg+";color:"+ts.c+";font-weight:700;border:none;",
+        e=>{t.status=e.target.value;t.updatedAt=new Date().toISOString();},
+        opt("pending","معلقة",t.status==="pending"||!t.status),
+        opt("in_progress","جارية",t.status==="in_progress"),
+        opt("done","منجزة",t.status==="done")
+      );
+      row.appendChild(info);
+      row.appendChild(taskSel);
+      taskDiv.appendChild(row);
+      wrap.appendChild(taskDiv);
+    });
+  }
+
+  // PM financial section
+  if(user.role==="pm"){
+    const finDiv=div({style:"margin-top:8px;padding:14px 16px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0"});
+    finDiv.appendChild(div({style:"font-size:12px;font-weight:800;color:#15803d;margin-bottom:10px"},"💰 التحديث المالي"));
+    const spentInfo=div({style:"font-size:11px;color:#16a34a;margin-top:4px"},
+      project.budget>0?"نسبة الصرف: "+pct(spent,project.budget)+"% من "+fmt(project.budget)+" ر.ع":""
+    );
+    const spentInp=inp({type:"number",style:INP,value:spent,onInput:e=>{
+      spent=e.target.value;
+      spentInfo.textContent=project.budget>0?"نسبة الصرف: "+pct(spent,project.budget)+"% من "+fmt(Number(project.budget))+" ر.ع":"";
+    }});
+    finDiv.appendChild(FldEl("المصروف الفعلي (ر.ع)",spentInp));
+    finDiv.appendChild(spentInfo);
+    wrap.appendChild(finDiv);
+  }
+
+  // Buttons
+  const btnRow=div({style:"display:flex;gap:10px;justify-content:flex-end;margin-top:18px"});
+  btnRow.appendChild(Btn("إلغاء",closeModal,{clr:"#f1f5f9",tc:"#374151"}));
+  btnRow.appendChild(Btn("✅ حفظ التحديث",()=>{
+    d.updatedAt=new Date().toISOString();
+    updateStage(d,user.role==="pm"?{spent}:null,project.id);
+  },{clr:"#16a34a"}));
+  wrap.appendChild(btnRow);
+
+  return ModalEl("تحديث المرحلة",wrap,true);
 }
 
-function buildGlobalDash(){
-  const {projects,stages}=STATE;
-  const totB=projects.reduce((a,p)=>a+Number(p.budget||0),0);
-  const totS=projects.reduce((a,p)=>a+Number(p.spent||0),0);
-  const avgC=stages.length?Math.round(stages.reduce((a,s)=>a+(s.completionPct||0),0)/stages.length):0;
-  const allTasks=stages.flatMap(s=>s.tasks||[]);
-  const delayed=stages.filter(s=>s.status==="delayed"||(overdue(s.endDate)&&s.status!=="completed")).length;
-  const doneP=projects.filter(p=>{const ps=stages.filter(s=>s.projectId===p.id);return ps.length>0&&ps.every(s=>s.status==="completed");}).length;
-  const allAlerts=projects.flatMap(p=>getAlerts(p,stages.filter(s=>s.projectId===p.id)));
-
-  return div({className:"fi"},
-    div({style:"margin-bottom:20px"},
-      h2({style:"color:#0F2044;font-size:22px;font-weight:900;margin-bottom:4px"},"لوحة المؤشرات / KPI Dashboard"),
-      div({style:"font-size:13px;color:#64748b"},"نظرة شاملة على جميع المشاريع · شمال الشرقية")
-    ),
-    div({style:"display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px"},
-      ...[["المشاريع",projects.length,"🏗","#0F2044"],["متوسط الإنجاز",avgC+"%","📈","#0284c7"],["نسبة الصرف",pct(totS,totB)+"%","💰","#16a34a"],["متأخرة",delayed,"⚠️","#dc2626"],["المهام",allTasks.length,"📌","#7c3aed"],["مكتملة",doneP,"✅","#16a34a"],["التنبيهات",allAlerts.length,"🔔",allAlerts.length>0?"#dc2626":"#16a34a"]].map(([l,v,icon,c])=>
-        div({style:`background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.07);padding:16px 18px;border-top:4px solid ${c};flex:1;min-width:90px;text-align:center`},
-          div({style:"font-size:22px;margin-bottom:4px"},icon),div({style:"font-size:10px;color:#64748b"},l),div({style:`font-size:24px;font-weight:900;color:${c};line-height:1.1`},v)
-        )
-      )
-    ),
-    div({style:"display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px"},
-      CardEl(div(null,
-        div({style:"font-weight:800;color:#0F2044;margin-bottom:12px;font-size:14px"},"توزيع المشاريع حسب النوع"),
-        ...PTYPES.map(t=>{const c=projects.filter(pp=>pp.type===t.v).length;return c>0?div({style:"display:flex;align-items:center;gap:10px;margin-bottom:10px"},
-          span({style:"font-size:18px;width:28px"},t.icon),
-          div({style:"flex:1"},
-            div({style:"display:flex;justify-content:space-between;font-size:12px;font-weight:700;margin-bottom:3px"},span({style:`color:${t.c}`},t.ar),span({style:"color:#0F2044"},c)),
-            BarEl(pct(c,projects.length),t.c)
-          )
-        ):null;})
-      ),"flex:1 1 260px"),
-      CardEl(div(null,
-        div({style:"font-weight:800;color:#0F2044;margin-bottom:12px;font-size:14px"},"التنبيهات النشطة"),
-        allAlerts.length===0?div({style:"text-align:center;padding:18px 0;color:#94a3b8"},div({style:"font-size:32px"},"✅"),div(null,"لا توجد تنبيهات")):
-        div(null,...allAlerts.slice(0,6).map((a,i)=>div({style:`display:flex;gap:8px;padding:7px 10px;border-radius:8px;margin-bottom:5px;background:${a.sev==="d"?"#fff5f5":"#fffbeb"};border-right:2px solid ${a.sev==="d"?"#dc2626":"#f59e0b"}`},
-          span({style:"font-size:16px"},a.icon),span({style:`font-size:12px;color:${a.sev==="d"?"#b91c1c":"#92400e"};font-weight:600`},a.msg)
-        )))
-      ),"flex:1 1 260px")
-    ),
-    CardEl(div(null,
-      div({style:"font-weight:800;color:#0F2044;margin-bottom:14px;font-size:14px"},"ملخص المشاريع"),
-      projects.length===0?div({style:"text-align:center;padding:40px;color:#94a3b8"},div({style:"font-size:40px;margin-bottom:10px"},"📋"),"لا توجد مشاريع بعد"):
-      div({style:"overflow-x:auto"},tbl({style:"width:100%;border-collapse:collapse;font-size:13px"},
-        thead(null,tr({style:"background:#f8fafc;border-bottom:2px solid #e2e8f0"},
-          ...["#","النوع","المشروع","الموقع","الميزانية","الصرف%","الإنجاز","تنبيهات"].map(hd=>th({style:"padding:9px 10px;text-align:right;font-size:11px;color:#374151;font-weight:700;white-space:nowrap"},hd))
-        )),
-        tbody(null,...projects.map((pp,i)=>{
-          const ps=stages.filter(s=>s.projectId===pp.id);
-          const aP=ps.length?Math.round(ps.reduce((a,s)=>a+(s.completionPct||0),0)/ps.length):0;
-          const al=getAlerts(pp,ps);const pt=gpt(pp.type);
-          return tr({style:"border-bottom:1px solid #f1f5f9"},
-            td({style:"padding:9px 10px;color:#94a3b8;font-size:11px"},i+1),
-            td({style:"padding:9px 10px;font-size:18px"},pt.icon),
-            td({style:"padding:9px 10px;font-weight:700;color:#0F2044"},pp.name||"-"),
-            td({style:"padding:9px 10px;color:#64748b"},pp.location||"-"),
-            td({style:"padding:9px 10px;font-weight:600"},fmt(pp.budget)+" ر.ع"),
-            td({style:`padding:9px 10px;font-weight:700;color:${pct(pp.spent,pp.budget)>90?"#dc2626":"#16a34a"}`},pct(pp.spent,pp.budget)+"%"),
-            td({style:"padding:9px 10px;min-width:90px"},div({style:"font-size:11px;font-weight:700;color:#0284c7;margin-bottom:2px"},aP+"%"),BarEl(aP,null,5)),
-            td({style:"padding:9px 10px"},al.length>0?span({style:"background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700"},"⚠️ "+al.length):span({style:"color:#16a34a;font-size:12px"},"✅"))
-          );
-        }))
-      ))
-    ))
-  );
-}
-
-function buildProjList(){
-  const{projects,stages}=STATE;
-  const filtered=projects.filter(pp=>(STATE.filterType==="all"||pp.type===STATE.filterType)&&(pp.name||"").includes(STATE.searchProj));
-  return div({className:"fi"},
-    div({style:"display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px"},
-      div(null,h2({style:"color:#0F2044;margin:0;font-size:22px;font-weight:900"},"المشاريع / Projects"),div({style:"font-size:12px;color:#64748b;margin-top:2px"},projects.length+" مشروع مسجل")),
-      Btn("+ إضافة مشروع",()=>setState({modal:{type:"addProj",data:null}}),{clr:"#1B8B8E"})
-    ),
-    projects.length>0?div({style:"display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap"},
-      inp({style:INP+"max-width:220px;font-size:13px;",value:STATE.searchProj,onInput:e=>setState({searchProj:e.target.value}),placeholder:"🔍 بحث..."}),
-      mkSel(INP+"width:auto;font-size:12px;",e=>setState({filterType:e.target.value}),opt("all","جميع الأنواع",STATE.filterType==="all"),...PTYPES.map(t=>opt(t.v,t.icon+" "+t.ar,STATE.filterType===t.v)))
-    ):null,
-    filtered.length===0?div({style:"background:#fff;border-radius:14px;padding:56px;text-align:center;color:#94a3b8"},div({style:"font-size:52px;margin-bottom:12px"},"🏗"),div({style:"font-size:16px;font-weight:700;color:#64748b"},"لا توجد مشاريع")):
-    div({style:"display:flex;flex-direction:column;gap:12px"},
-      ...filtered.map(pp=>{
-        const ps=stages.filter(s=>s.projectId===pp.id);
-        const avgP=ps.length?Math.round(ps.reduce((a,s)=>a+(s.completionPct||0),0)/ps.length):0;
-        const allT=ps.flatMap(s=>s.tasks||[]);const al=getAlerts(pp,ps);const pt=gpt(pp.type);
-        const card=div({style:`background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:16px 20px;cursor:pointer;border-right:4px solid ${pt.c}`,onClick:()=>setState({selProj:pp,view:"projects",projTab:"overview"})},
-          div({style:"display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px"},
-            div({style:"flex:1;min-width:0"},
-              div({style:"display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap"},
-                span({style:"font-size:18px"},pt.icon),span({style:"font-size:17px;font-weight:900;color:#0F2044"},pp.name||"بدون اسم"),
-                span({style:`font-size:11px;color:${pt.c};background:${pt.c}18;padding:1px 8px;border-radius:10px;font-weight:700`},pt.ar),
-                al.length>0?span({style:"font-size:11px;color:#dc2626;background:#fee2e2;padding:1px 8px;border-radius:10px;font-weight:700"},"⚠️ "+al.length):null
-              ),
-              div({style:"font-size:12px;color:#64748b"},"📍 "+(pp.location||"-")+" · 🏗 "+(pp.contractor||"-")+" · ⏱ "+(pp.durationMonths||"-")+" شهر"),
-              div({style:"display:flex;gap:12px;margin-top:6px;font-size:11px;color:#94a3b8"},span("📊 "+ps.length+" مرحلة"),span("📌 "+allT.length+" مهمة"),span("🎯 "+((pp.kpis||[]).length)+" KPI"))
-            ),
-            div({style:"text-align:center;background:#f8fafc;border-radius:10px;padding:10px 16px;flex-shrink:0"},
-              div({style:"font-size:10px;color:#64748b"},"الميزانية"),div({style:"font-size:17px;font-weight:800;color:#0F2044"},fmt(pp.budget)),
-              div({style:`font-size:10px;color:${pct(pp.spent,pp.budget)>90?"#dc2626":"#94a3b8"}`},"ر.ع · صُرف: "+pct(pp.spent,pp.budget)+"%")
-            )
-          ),
-          div({style:"margin-top:12px"},BarEl(avgP)),
-          div({style:"display:flex;justify-content:space-between;align-items:center;margin-top:10px"},
-            div({style:"font-size:11px;color:#94a3b8"},"اضغط لفتح لوحة التحكم الكاملة"),
-            div({style:"display:flex;gap:6px"},
-              Btn("✏️",e=>{e.stopPropagation();setState({modal:{type:"editProj",data:pp}});},{clr:"#f1f5f9",tc:"#374151",sm:true}),
-              Btn("🗑",e=>{e.stopPropagation();deleteProject(pp.id);},{clr:"#fee2e2",tc:"#b91c1c",sm:true})
-            )
-          )
-        );
-        return card;
-      })
-    )
-  );
-}
-
+/* ═══ PROJECT DASHBOARD ═══ */
 function buildProjDash(project){
-  const{stages}=STATE;
-  const tab=STATE.projTab||"overview";
-  const ps=stages.filter(s=>s.projectId===project.id);
+  const tab=S.projTab||"overview";
+  const ps=S.stages.filter(s=>s.projectId===project.id);
   const avgP=ps.length?Math.round(ps.reduce((a,s)=>a+(s.completionPct||0),0)/ps.length):0;
-  const allTasks=ps.flatMap(s=>(s.tasks||[]).map(t=>({...t,stageName:s.name})));
-  const doneTasks=allTasks.filter(t=>t.status==="done").length;
+  const allTasks=ps.flatMap(s=>(s.tasks||[]));const doneTasks=allTasks.filter(t=>t.status==="done").length;
   const alerts=getAlerts(project,ps);const pt=gpt(project.type);const sp=pct(project.spent,project.budget);
 
   const header=div({style:"background:linear-gradient(135deg,#0F2044,#1a4a6e);border-radius:16px;padding:22px 26px;margin-bottom:14px;color:#fff;position:relative;overflow:hidden"},
     div({style:"position:absolute;top:-20px;left:-20px;width:120px;height:120px;border-radius:50%;background:rgba(27,139,142,.2)"}),
     div({style:"position:relative"},
       div({style:"display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap"},
-        span({style:"font-size:24px"},pt.icon),
-        div(null,div({style:"font-size:11px;color:rgba(255,255,255,.5)"},pt.ar+" · "+project.location),h2({style:"margin:0;font-size:20px;font-weight:900"},project.name)),
+        span({style:"font-size:24px"},pt.icon),div(null,div({style:"font-size:11px;color:rgba(255,255,255,.5)"},pt.ar+" · "+project.location),h2({style:"margin:0;font-size:20px;font-weight:900"},project.name)),
         alerts.length>0?div({style:"margin-right:auto;background:#dc2626;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700"},"⚠️ "+alerts.length+" تنبيه"):null
       ),
       div({style:"display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px"},
         ...[["الميزانية",fmt(project.budget)+" ر.ع","#60a5fa"],["المصروف",fmt(project.spent)+" ر.ع","#34d399"],["المتبقي",fmt(Number(project.budget||0)-Number(project.spent||0))+" ر.ع","#fbbf24"],["الصرف",sp+"%",sp>90?"#f87171":"#60a5fa"]].map(([l,v,c])=>div(null,div({style:"font-size:10px;color:rgba(255,255,255,.5)"},l),div({style:`font-size:17px;font-weight:800;color:${c}`},v)))
       ),
       div(null,div({style:"display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,.5);margin-bottom:4px"},span("الإنجاز الكلي"),span({style:"font-weight:800;color:#fff"},avgP+"%")),
-        div({style:"background:rgba(255,255,255,.15);border-radius:10px;height:8px"},div({style:`width:${avgP}%;background:${avgP>=100?"#34d399":avgP>=60?"#60a5fa":"#fbbf24"};height:100%;border-radius:10px;transition:width .8s`}))
+        div({style:"background:rgba(255,255,255,.15);border-radius:10px;height:8px"},div({style:`width:${avgP}%;background:${avgP>=100?"#34d399":avgP>=60?"#60a5fa":"#fbbf24"};height:100%;border-radius:10px`}))
       )
     )
   );
 
   const stats=div({style:"display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap"},
-    ...[["المراحل",ps.length,"🗂","#0F2044"],["مكتملة",ps.filter(s=>s.status==="completed").length,"✅","#16a34a"],["متأخرة",ps.filter(s=>s.status==="delayed").length,"⚠️","#dc2626"],["المهام",allTasks.length,"📌","#7c3aed"],["منجزة",doneTasks,"✔","#16a34a"],["KPI",(project.kpis||[]).length,"📊","#ea580c"]].map(([l,v,icon,c])=>
-      div({style:"background:#fff;border-radius:12px;padding:10px 14px;flex:1;min-width:60px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.06)"},div({style:"font-size:18px"},icon),div({style:`font-size:20px;font-weight:900;color:${c};line-height:1.1`},v),div({style:"font-size:10px;color:#64748b;margin-top:2px"},l))
-    )
+    ...[["المراحل",ps.length,"🗂","#0F2044"],["مكتملة",ps.filter(s=>s.status==="completed").length,"✅","#16a34a"],["متأخرة",ps.filter(s=>s.status==="delayed").length,"⚠️","#dc2626"],["المهام",allTasks.length,"📌","#7c3aed"],["منجزة",doneTasks,"✔","#16a34a"],["KPI",(project.kpis||[]).length,"📊","#ea580c"]].map(([l,v,icon,c])=>div({style:"background:#fff;border-radius:12px;padding:10px 14px;flex:1;min-width:60px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.06)"},div({style:"font-size:18px"},icon),div({style:`font-size:20px;font-weight:900;color:${c};line-height:1.1`},v),div({style:"font-size:10px;color:#64748b;margin-top:2px"},l)))
   );
 
-  // tab content
   let tabContent;
   if(tab==="overview"){
     tabContent=div({style:"display:flex;gap:20px;flex-wrap:wrap"},
-      div({style:"flex:1 1 200px;text-align:center"},
-        div({style:"font-weight:800;color:#0F2044;margin-bottom:14px;font-size:14px"},"الإنجاز الكلي"),
-        div({style:"display:flex;justify-content:center;margin-bottom:12px"},Ring(avgP,110,avgP>=100?"#16a34a":avgP>=60?"#0284c7":"#f59e0b")),
-        div({style:"display:flex;justify-content:space-around"},
-          ...[["المالي",sp,"#16a34a"],["المراحل",ps.length?Math.round(ps.filter(s=>s.status==="completed").length/ps.length*100):0,"#0284c7"],["المهام",allTasks.length?Math.round(doneTasks/allTasks.length*100):0,"#7c3aed"]].map(([l,v,c])=>div({style:"text-align:center"},Ring(v,60,c),div({style:"font-size:10px;color:#64748b;margin-top:3px"},l)))
-        )
-      ),
-      div({style:"flex:1 1 260px"},
-        div({style:"font-weight:800;color:#0F2044;margin-bottom:12px;font-size:14px"},"تقدم المراحل"),
+      div({style:"flex:1 1 200px;text-align:center"},div({style:"font-weight:800;color:#0F2044;margin-bottom:14px;font-size:14px"},"الإنجاز الكلي"),div({style:"display:flex;justify-content:center;margin-bottom:12px"},Ring(avgP,110,avgP>=100?"#16a34a":avgP>=60?"#0284c7":"#f59e0b")),
+        div({style:"display:flex;justify-content:space-around"},...[["المالي",sp,"#16a34a"],["المراحل",ps.length?Math.round(ps.filter(s=>s.status==="completed").length/ps.length*100):0,"#0284c7"],["المهام",allTasks.length?Math.round(doneTasks/allTasks.length*100):0,"#7c3aed"]].map(([l,v,c])=>div({style:"text-align:center"},Ring(v,60,c),div({style:"font-size:10px;color:#64748b;margin-top:3px"},l))))),
+      div({style:"flex:1 1 260px"},div({style:"font-weight:800;color:#0F2044;margin-bottom:12px;font-size:14px"},"تقدم المراحل"),
         ps.length===0?div({style:"color:#94a3b8;text-align:center;padding:20px 0"},"لا توجد مراحل بعد"):
-        div(null,...ps.map(s=>div({style:"margin-bottom:10px"},
-          div({style:"display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"},
-            div({style:"font-size:12px;font-weight:700;color:#374151;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"},s.name),
-            div({style:"display:flex;align-items:center;gap:6px;flex-shrink:0"},Badge(s.status),span({style:"font-size:11px;font-weight:700;color:#0284c7"},(s.completionPct||0)+"%"))
-          ),BarEl(s.completionPct||0)
-        )))
+        div(null,...ps.map(s=>div({style:"margin-bottom:10px"},div({style:"display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"},div({style:"font-size:12px;font-weight:700;color:#374151;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"},s.name),div({style:"display:flex;align-items:center;gap:6px;flex-shrink:0"},Badge(s.status),span({style:"font-size:11px;font-weight:700;color:#0284c7"},(s.completionPct||0)+"%"))),BarEl(s.completionPct||0))))
       )
     );
   } else if(tab==="stages"){
     tabContent=div(null,
       ps.length===0?div({style:"text-align:center;padding:32px 0;color:#94a3b8"},div({style:"font-size:40px;margin-bottom:8px"},"🗂"),"لا توجد مراحل بعد"):
       div(null,...ps.map(s=>{
-        const isExp=STATE.stageExpanded===s.id;
-        const sTasks=s.tasks||[];const doneT=sTasks.filter(t=>t.status==="done").length;
-        const rd=ROLES[s.responsibleRole]||{ar:s.responsibleRole,c:"#666"};
-        const row=div({style:`border:1px solid #e2e8f0;border-radius:12px;margin-bottom:10px;overflow:hidden`});
-        const rowHeader=div({className:"rh",style:`padding:13px 16px;display:flex;justify-content:space-between;align-items:center;background:${isExp?"#f0f7ff":"#fff"};gap:10px`,
-          onClick:()=>setState({stageExpanded:isExp?null:s.id})
-        },
+        const isExp=S.stageExp===s.id;const sTasks=s.tasks||[];const doneT=sTasks.filter(t=>t.status==="done").length;const rd=ROLES[s.responsibleRole]||{ar:s.responsibleRole,c:"#666"};
+        const row=div({style:"border:1px solid #e2e8f0;border-radius:12px;margin-bottom:10px;overflow:hidden"});
+        row.appendChild(div({className:"rh",style:`padding:13px 16px;display:flex;justify-content:space-between;align-items:center;background:${isExp?"#f0f7ff":"#fff"};gap:10px`,onClick:()=>setState({stageExp:isExp?null:s.id})},
           div({style:"flex:1;min-width:0"},
-            div({style:"display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap"},
-              span({style:"font-size:14px;font-weight:800;color:#0F2044"},s.name),Badge(s.status),
-              sTasks.length>0?span({style:"font-size:11px;color:#7c3aed;background:#f5f3ff;padding:1px 8px;border-radius:10px;font-weight:700"},"📌 "+doneT+"/"+sTasks.length):null
-            ),
+            div({style:"display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap"},span({style:"font-size:14px;font-weight:800;color:#0F2044"},s.name),Badge(s.status),sTasks.length>0?span({style:"font-size:11px;color:#7c3aed;background:#f5f3ff;padding:1px 8px;border-radius:10px;font-weight:700"},"📌 "+doneT+"/"+sTasks.length):null),
             div({style:"font-size:11px;color:#64748b"},(s.startDate||"-")+" → "+(s.endDate||"-")+" · ",span({style:`color:${rd.c};font-weight:700`},rd.ar))
           ),
           div({style:"display:flex;align-items:center;gap:10px;flex-shrink:0"},
             div({style:"text-align:center;width:50px"},div({style:"font-size:13px;font-weight:800;color:#0284c7"},(s.completionPct||0)+"%"),BarEl(s.completionPct||0,null,5)),
-            div({style:"display:flex;gap:4px"},
-              Btn("✏️",e=>{e.stopPropagation();setState({modal:{type:"editStage",data:s}});},{clr:"#f1f5f9",tc:"#374151",sm:true}),
-              Btn("🗑",e=>{e.stopPropagation();deleteStage(s.id);},{clr:"#fee2e2",tc:"#b91c1c",sm:true})
-            ),
+            div({style:"display:flex;gap:4px"},Btn("✏️",e=>{e.stopPropagation();setState({modal:{type:"editStage",data:s}});},{clr:"#f1f5f9",tc:"#374151",sm:true}),Btn("🗑",e=>{e.stopPropagation();deleteStage(s.id);},{clr:"#fee2e2",tc:"#b91c1c",sm:true})),
             span({style:"color:#94a3b8;font-size:14px"},isExp?"▲":"▼")
           )
-        );
-        row.appendChild(rowHeader);
+        ));
         if(isExp){
-          const expBody=div({style:"padding:12px 16px;background:#f9fafb;border-top:1px solid #e2e8f0"});
-          if(s.notes)expBody.appendChild(div({style:"font-size:12px;color:#64748b;margin-bottom:10px;padding:8px 12px;background:#fff;border-radius:8px;border-right:3px solid #d1d5db"},"💬 "+s.notes));
-          if(sTasks.length===0)expBody.appendChild(div({style:"font-size:12px;color:#94a3b8;text-align:center;padding:10px 0"},"لا توجد مهام فرعية"));
-          else{
-            expBody.appendChild(div({style:"font-size:12px;font-weight:700;color:#374151;margin-bottom:8px"},"المهام الفرعية:"));
-            sTasks.forEach(t=>{
-              const tr2=ROLES[t.assignedRole]||{ar:t.assignedRole,c:"#666"};const od=overdue(t.dueDate)&&t.status!=="done";
-              expBody.appendChild(div({style:`display:flex;align-items:center;gap:8px;padding:7px 10px;background:#fff;border-radius:8px;margin-bottom:5px;border:1px solid ${od?"#fecaca":"#e2e8f0"}`},
-                TBadge(t.status),span({style:"flex:1;font-size:12px;font-weight:600;color:#1e293b"},(t.priority==="high"?"🔴 ":t.priority==="low"?"🟢 ":"🟡 ")+t.title),
-                span({style:`font-size:11px;color:${tr2.c};background:${tr2.c}18;padding:1px 8px;border-radius:10px;font-weight:700`},tr2.ar),
-                t.dueDate?span({style:`font-size:10px;color:${od?"#dc2626":"#94a3b8"}`},"📅 "+t.dueDate):null
-              ));
-            });
-          }
-          row.appendChild(expBody);
+          const eb=div({style:"padding:12px 16px;background:#f9fafb;border-top:1px solid #e2e8f0"});
+          if(s.notes)eb.appendChild(div({style:"font-size:12px;color:#64748b;margin-bottom:10px;padding:8px 12px;background:#fff;border-radius:8px;border-right:3px solid #d1d5db"},"💬 "+s.notes));
+          if(sTasks.length===0)eb.appendChild(div({style:"font-size:12px;color:#94a3b8;text-align:center;padding:10px 0"},"لا توجد مهام فرعية"));
+          else{eb.appendChild(div({style:"font-size:12px;font-weight:700;color:#374151;margin-bottom:8px"},"المهام الفرعية:"));sTasks.forEach(t=>{const tr2=ROLES[t.assignedRole]||{ar:t.assignedRole,c:"#666"};const od=overdue(t.dueDate)&&t.status!=="done";eb.appendChild(div({style:`display:flex;align-items:center;gap:8px;padding:7px 10px;background:#fff;border-radius:8px;margin-bottom:5px;border:1px solid ${od?"#fecaca":"#e2e8f0"}`},TBadge(t.status),span({style:"flex:1;font-size:12px;font-weight:600;color:#1e293b"},(t.priority==="high"?"🔴 ":t.priority==="low"?"🟢 ":"🟡 ")+t.title),span({style:`font-size:11px;color:${tr2.c};background:${tr2.c}18;padding:1px 8px;border-radius:10px;font-weight:700`},tr2.ar),t.dueDate?span({style:`font-size:10px;color:${od?"#dc2626":"#94a3b8"}`},"📅 "+t.dueDate):null));});}
+          row.appendChild(eb);
         }
         return row;
       }))
     );
   } else if(tab==="kpis"){
     tabContent=(!project.kpis||project.kpis.length===0)?div({style:"text-align:center;padding:32px 0;color:#94a3b8"},div({style:"font-size:40px;margin-bottom:8px"},"📊"),div({style:"font-weight:700;margin-bottom:12px"},"لا توجد مؤشرات"),Btn("+ إضافة مؤشرات",()=>setState({modal:{type:"editProj",data:project}}),{clr:"#1B8B8E"})):
-    div({style:"display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px"},...(project.kpis||[]).map(k=>KPIGaugeEl(k)));
+    div({style:"display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px"},...project.kpis.map(k=>KPIGaugeEl(k)));
   } else if(tab==="team"){
-    tabContent=div({style:"display:flex;flex-wrap:wrap;gap:12px"},
-      ...Object.entries(ROLES).map(([role,rd])=>{const c=project[role]||{};return div({style:`background:#f8fafc;border-radius:12px;padding:14px 16px;flex:1 1 200px;border-right:3px solid ${rd.c}`},
-        div({style:`font-size:11px;font-weight:700;color:${rd.c};margin-bottom:6px`},rd.ar),
-        c.name?div(null,div({style:"font-size:15px;font-weight:800;color:#0F2044"},c.name),c.phone?div({style:"font-size:12px;color:#64748b;margin-top:4px"},"📞 "+c.phone):null,c.email?div({style:"font-size:12px;color:#64748b"},"✉ "+c.email):null):
-        div({style:"font-size:12px;color:#94a3b8;font-style:italic"},"غير محدد")
-      );})
-    );
+    tabContent=div({style:"display:flex;flex-wrap:wrap;gap:12px"},...Object.entries(ROLES).map(([role,rd])=>{const c=project[role]||{};return div({style:`background:#f8fafc;border-radius:12px;padding:14px 16px;flex:1 1 200px;border-right:3px solid ${rd.c}`},div({style:`font-size:11px;font-weight:700;color:${rd.c};margin-bottom:6px`},rd.ar),c.name?div(null,div({style:"font-size:15px;font-weight:800;color:#0F2044"},c.name),c.phone?div({style:"font-size:12px;color:#64748b;margin-top:4px"},"📞 "+c.phone):null,c.email?div({style:"font-size:12px;color:#64748b"},"✉ "+c.email):null):div({style:"font-size:12px;color:#94a3b8;font-style:italic"},"غير محدد"));}));
   } else {
     tabContent=alerts.length===0?div({style:"text-align:center;padding:28px 0;color:#94a3b8"},div({style:"font-size:36px;margin-bottom:8px"},"✅"),"لا توجد تنبيهات"):
-    div(null,...alerts.map((a,i)=>div({style:`display:flex;align-items:flex-start;gap:12px;padding:11px 14px;border-radius:10px;margin-bottom:8px;background:${a.sev==="d"?"#fff5f5":"#fffbeb"};border-right:3px solid ${a.sev==="d"?"#dc2626":"#f59e0b"}`},
-      span({style:"font-size:20px"},a.icon),div({style:`font-size:13px;font-weight:700;color:${a.sev==="d"?"#b91c1c":"#92400e"}`},a.msg)
-    )));
+    div(null,...alerts.map((a,i)=>div({style:`display:flex;align-items:flex-start;gap:12px;padding:11px 14px;border-radius:10px;margin-bottom:8px;background:${a.sev==="d"?"#fff5f5":"#fffbeb"};border-right:3px solid ${a.sev==="d"?"#dc2626":"#f59e0b"}`},span({style:"font-size:20px"},a.icon),div({style:`font-size:13px;font-weight:700;color:${a.sev==="d"?"#b91c1c":"#92400e"}`},a.msg))));
   }
-
-  const tabBar=div({style:"display:flex;border-bottom:1px solid #e2e8f0;padding:0 8px;overflow-x:auto"},
-    ...["overview","stages","kpis","team","alerts"].map((v,i)=>TabBtn(["نظرة عامة","المراحل والمهام","مؤشرات KPI","الفريق","التنبيهات"+(alerts.length>0?" ("+alerts.length+")":"")][i],tab===v,()=>setState({projTab:v})))
-  );
 
   return div({className:"fi"},
     div({style:"display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px"},
       btn({style:"border:none;background:none;cursor:pointer;color:#0284c7;font-size:14px;font-weight:700;font-family:Cairo,sans-serif",onClick:()=>setState({selProj:null})},"← رجوع للمشاريع"),
       div({style:"display:flex;gap:8px"},
-        Btn("✏️ تعديل المشروع",()=>setState({modal:{type:"editProj",data:project}}),{clr:"#f1f5f9",tc:"#374151",sm:true}),
+        Btn("🖨 طباعة",()=>{window.print();},{clr:"#64748b",tc:"#fff",sm:true}),
+        Btn("✏️ تعديل",()=>setState({modal:{type:"editProj",data:project}}),{clr:"#f1f5f9",tc:"#374151",sm:true}),
         Btn("+ إضافة مرحلة",()=>setState({modal:{type:"addStage",data:{projectId:project.id}}}),{clr:"#1B8B8E",sm:true})
       )
     ),
     header,stats,
-    div({style:"background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.07)"},tabBar,div({style:"padding:20px 24px"},tabContent))
+    div({style:"background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.07)"},
+      div({style:"display:flex;border-bottom:1px solid #e2e8f0;padding:0 8px;overflow-x:auto"},
+        ...["overview","stages","kpis","team","alerts"].map((v,i)=>TabBtn(["نظرة عامة","المراحل والمهام","مؤشرات KPI","الفريق","التنبيهات"+(alerts.length>0?" ("+alerts.length+")":"")][i],tab===v,()=>setState({projTab:v})))
+      ),
+      div({style:"padding:20px 24px"},tabContent)
+    )
   );
 }
 
-function buildUsersView(){
-  const{users,projects}=STATE;
+/* ═══ GLOBAL DASHBOARD ═══ */
+function buildGlobalDash(){
+  const{projects,stages}=S;
+  const totB=projects.reduce((a,p)=>a+Number(p.budget||0),0);
+  const totS=projects.reduce((a,p)=>a+Number(p.spent||0),0);
+  const avgC=stages.length?Math.round(stages.reduce((a,s)=>a+(s.completionPct||0),0)/stages.length):0;
+  const allTasks=stages.flatMap(s=>s.tasks||[]);
+  const delayed=stages.filter(s=>s.status==="delayed"||(overdue(s.endDate)&&s.status!=="completed")).length;
+  const allAlerts=projects.flatMap(p=>getAlerts(p,stages.filter(s=>s.projectId===p.id)));
   return div({className:"fi"},
-    div({style:"display:flex;justify-content:space-between;align-items:center;margin-bottom:20px"},
-      div(null,h2({style:"color:#0F2044;margin:0;font-size:22px;font-weight:900"},"إدارة المستخدمين"),div({style:"font-size:12px;color:#64748b;margin-top:2px"},users.length+" مستخدم")),
-      Btn("+ إضافة مستخدم",()=>setState({modal:{type:"addUser"}}),{clr:"#1B8B8E"})
+    div({style:"display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px"},
+      div(null,h2({style:"color:#0F2044;font-size:22px;font-weight:900;margin-bottom:4px"},APP_NAME_AR+" · لوحة المؤشرات"),div({style:"font-size:13px;color:#64748b"},ORG_AR)),
+      div({style:"display:flex;gap:8px"},
+        Btn("🖨 طباعة",()=>window.print(),{clr:"#64748b",tc:"#fff",sm:true}),
+        Btn("⛶ شاشة كاملة",()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();},{clr:"#0F2044",sm:true})
+      )
     ),
-    users.length===0?div({style:"background:#fff;border-radius:14px;padding:56px;text-align:center;color:#94a3b8"},div({style:"font-size:52px;margin-bottom:12px"},"👥"),div({style:"font-size:16px;font-weight:700;color:#64748b"},"لا يوجد مستخدمون")):
-    div({style:"display:flex;flex-direction:column;gap:10px"},
-      ...users.map(u=>{
-        const rd=ROLES[u.role]||{ar:u.role,c:"#666"};const aP=projects.filter(pp=>(u.projectIds||[]).includes(pp.id));
-        let copied=false;
-        const copyBtn=btn({style:"border:none;background:#f1f5f9;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:14px",onClick:()=>{navigator.clipboard&&navigator.clipboard.writeText(u.code);copyBtn.textContent="✅";setTimeout(()=>copyBtn.textContent="📋",1800);}},"📋");
-        return div({style:`background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:14px 18px;border-right:4px solid ${rd.c}`},
-          div({style:"display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px"},
-            div({style:"flex:1"},
-              div({style:"font-size:16px;font-weight:800;color:#0F2044;margin-bottom:2px"},u.name),
-              div({style:`font-size:12px;color:${rd.c};font-weight:700`},rd.ar),
-              u.phone?div({style:"font-size:12px;color:#64748b;margin-top:3px"},"📞 "+u.phone):null,
-              div({style:"margin-top:8px;display:flex;flex-wrap:wrap;gap:5px"},
-                aP.length===0?span({style:"font-size:11px;color:#94a3b8"},"لا توجد مشاريع مخصصة"):
-                aP.map(pp=>{const pt=gpt(pp.type);return span({style:"background:#dbeafe;color:#1d4ed8;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600"},pt.icon+" "+pp.name);})
-              )
-            ),
-            div({style:"text-align:center"},
-              div({style:"font-size:11px;color:#64748b;margin-bottom:4px"},"رمز الدخول"),
-              div({style:"display:flex;align-items:center;gap:6px"},
-                code({style:"font-size:15px;font-weight:900;color:#0F2044;background:#f1f5f9;padding:7px 14px;border-radius:8px;letter-spacing:2px"},u.code),copyBtn
-              ),
-              div({style:"margin-top:7px"},Btn("🗑 حذف",()=>deleteUser(u.id),{clr:"#fee2e2",tc:"#b91c1c",sm:true,style:"width:100%"}))
-            )
+    div({style:"display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px"},
+      ...[["المشاريع",projects.length,"🏗","#0F2044"],["متوسط الإنجاز",avgC+"%","📈","#0284c7"],["نسبة الصرف",pct(totS,totB)+"%","💰","#16a34a"],["متأخرة",delayed,"⚠️","#dc2626"],["المهام",allTasks.length,"📌","#7c3aed"],["التنبيهات",allAlerts.length,"🔔",allAlerts.length>0?"#dc2626":"#16a34a"]].map(([l,v,icon,c])=>div({style:`background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.07);padding:16px 18px;border-top:4px solid ${c};flex:1;min-width:90px;text-align:center`},div({style:"font-size:22px;margin-bottom:4px"},icon),div({style:"font-size:10px;color:#64748b"},l),div({style:`font-size:24px;font-weight:900;color:${c};line-height:1.1`},v)))
+    ),
+    div({style:"display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px"},
+      CardEl(div(null,div({style:"font-weight:800;color:#0F2044;margin-bottom:12px;font-size:14px"},"توزيع المشاريع حسب النوع"),
+        ...PTYPES.map(t=>{const c=projects.filter(pp=>pp.type===t.v).length;return c>0?div({style:"display:flex;align-items:center;gap:10px;margin-bottom:10px"},span({style:"font-size:18px;width:28px"},t.icon),div({style:"flex:1"},div({style:"display:flex;justify-content:space-between;font-size:12px;font-weight:700;margin-bottom:3px"},span({style:`color:${t.c}`},t.ar),span({style:"color:#0F2044"},c)),BarEl(pct(c,projects.length),t.c))):null;})
+      ),"flex:1 1 260px"),
+      CardEl(div(null,div({style:"font-weight:800;color:#0F2044;margin-bottom:12px;font-size:14px"},"التنبيهات النشطة"),
+        allAlerts.length===0?div({style:"text-align:center;padding:18px 0;color:#94a3b8"},div({style:"font-size:32px"},"✅"),"لا توجد تنبيهات"):
+        div(null,...allAlerts.slice(0,6).map((a,i)=>div({style:`display:flex;gap:8px;padding:7px 10px;border-radius:8px;margin-bottom:5px;background:${a.sev==="d"?"#fff5f5":"#fffbeb"};border-right:2px solid ${a.sev==="d"?"#dc2626":"#f59e0b"}`},span({style:"font-size:16px"},a.icon),span({style:`font-size:12px;color:${a.sev==="d"?"#b91c1c":"#92400e"};font-weight:600`},a.msg))))
+      ),"flex:1 1 260px")
+    ),
+    CardEl(div(null,
+      div({style:"font-weight:800;color:#0F2044;margin-bottom:14px;font-size:14px"},"ملخص المشاريع"),
+      projects.length===0?div({style:"text-align:center;padding:40px;color:#94a3b8"},div({style:"font-size:40px;margin-bottom:10px"},"📋"),"لا توجد مشاريع بعد"):
+      div({style:"overflow-x:auto"},tbl({style:"width:100%;border-collapse:collapse;font-size:13px"},
+        thead(null,tr({style:"background:#f8fafc;border-bottom:2px solid #e2e8f0"},...["#","النوع","المشروع","الموقع","الميزانية","الصرف%","الإنجاز","تنبيهات"].map(hd=>th({style:"padding:9px 10px;text-align:right;font-size:11px;color:#374151;font-weight:700;white-space:nowrap"},hd)))),
+        tbody(null,...projects.map((pp,i)=>{const ps=S.stages.filter(s=>s.projectId===pp.id);const aP=ps.length?Math.round(ps.reduce((a,s)=>a+(s.completionPct||0),0)/ps.length):0;const al=getAlerts(pp,ps);const pt=gpt(pp.type);
+          return tr({style:"border-bottom:1px solid #f1f5f9;cursor:pointer",onClick:()=>setState({view:"projects",selProj:pp,projTab:"overview"})},
+            td({style:"padding:9px 10px;color:#94a3b8;font-size:11px"},i+1),td({style:"padding:9px 10px;font-size:18px"},pt.icon),td({style:"padding:9px 10px;font-weight:700;color:#0F2044"},pp.name||"-"),td({style:"padding:9px 10px;color:#64748b"},pp.location||"-"),td({style:"padding:9px 10px;font-weight:600"},fmt(pp.budget)+" ر.ع"),td({style:`padding:9px 10px;font-weight:700;color:${pct(pp.spent,pp.budget)>90?"#dc2626":"#16a34a"}`},pct(pp.spent,pp.budget)+"%"),td({style:"padding:9px 10px;min-width:90px"},div({style:"font-size:11px;font-weight:700;color:#0284c7;margin-bottom:2px"},aP+"%"),BarEl(aP,null,5)),td({style:"padding:9px 10px"},al.length>0?span({style:"background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700"},"⚠️ "+al.length):span({style:"color:#16a34a;font-size:12px"},"✅"))
+          );}))
+      ))
+    ))
+  );
+}
+
+/* ═══ PM DASHBOARD ═══ */
+function buildPMDash(){
+  const user=S.user;const myP=S.projects.filter(p=>(user.projectIds||[]).includes(p.id));
+  const myStages=S.stages.filter(s=>(user.projectIds||[]).includes(s.projectId));
+  const totB=myP.reduce((a,p)=>a+Number(p.budget||0),0);const totS=myP.reduce((a,p)=>a+Number(p.spent||0),0);
+  const allAlerts=myP.flatMap(p=>getAlerts(p,myStages.filter(s=>s.projectId===p.id)));
+  const allTasks=myStages.flatMap(s=>s.tasks||[]);const myTasks=allTasks.filter(t=>t.assignedRole===user.role);
+  const avgC=myStages.length?Math.round(myStages.reduce((a,s)=>a+(s.completionPct||0),0)/myStages.length):0;
+  return div({className:"fi"},
+    div({style:"background:linear-gradient(135deg,#0F2044,#1a4a6e);border-radius:16px;padding:22px 26px;margin-bottom:16px;color:#fff"},
+      div({style:"display:flex;align-items:center;gap:12px;margin-bottom:14px"},
+        img({src:LOGO_SRC,alt:"MOH",style:"height:36px;object-fit:contain;filter:brightness(0) invert(1);opacity:.8"}),
+        div(null,div({style:"font-size:22px;font-weight:900;letter-spacing:-1px"},APP_NAME_AR),div({style:"font-size:11px;color:rgba(255,255,255,.5)"},ORG_AR))
+      ),
+      h2({style:"margin:0 0 4px;font-size:18px;font-weight:900"},"مرحباً، "+user.name+" 👋"),
+      div({style:"font-size:12px;color:rgba(255,255,255,.6);margin-bottom:14px"},ROLES[user.role]?.ar||"مدير المشروع"),
+      div({style:"display:flex;gap:14px;flex-wrap:wrap"},
+        ...[["مشاريعي",myP.length,"#60a5fa"],["متوسط الإنجاز",avgC+"%","#34d399"],["الصرف",pct(totS,totB)+"%","#fbbf24"],["التنبيهات",allAlerts.length,allAlerts.length>0?"#f87171":"#34d399"]].map(([l,v,c])=>div(null,div({style:`font-size:26px;font-weight:900;color:${c}`},v),div({style:"font-size:10px;color:rgba(255,255,255,.5)"},l)))
+      )
+    ),
+    div({style:"display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px"},
+      ...myP.map(pp=>{
+        const ps=myStages.filter(s=>s.projectId===pp.id);const avgP=ps.length?Math.round(ps.reduce((a,s)=>a+(s.completionPct||0),0)/ps.length):0;const al=getAlerts(pp,ps);const pt=gpt(pp.type);
+        return div({style:`background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 12px rgba(0,0,0,.07);border-top:4px solid ${pt.c};cursor:pointer`,onClick:()=>setState({view:"my",selProj:null})},
+          div({style:"display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px"},
+            div(null,div({style:"display:flex;align-items:center;gap:6px;margin-bottom:4px"},span({style:"font-size:16px"},pt.icon),span({style:"font-size:14px;font-weight:800;color:#0F2044"},pp.name)),div({style:"font-size:11px;color:#64748b"},pp.location||"")),
+            al.length>0?span({style:"background:#fee2e2;color:#dc2626;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700"},"⚠️ "+al.length):span({style:"color:#16a34a;font-size:16px"},"✅")
+          ),
+          div({style:"margin-bottom:10px"},BarEl(avgP,pt.c)),
+          div({style:"display:flex;justify-content:space-between;font-size:11px;color:#64748b"},
+            span("📊 "+ps.length+" مرحلة"),span("💰 "+fmt(pp.budget)+" ر.ع"),span(avgP+"%")
           )
         );
       })
@@ -965,68 +765,233 @@ function buildUsersView(){
   );
 }
 
+/* ═══ PROJECTS LIST ═══ */
+function buildProjList(){
+  const{projects,stages}=S;
+  const filtered=projects.filter(pp=>(S.filterType==="all"||pp.type===S.filterType)&&(pp.name||"").includes(S.search));
+  return div({className:"fi"},
+    div({style:"display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px"},
+      div(null,h2({style:"color:#0F2044;margin:0;font-size:22px;font-weight:900"},"المشاريع"),div({style:"font-size:12px;color:#64748b;margin-top:2px"},projects.length+" مشروع")),
+      Btn("+ إضافة مشروع",()=>setState({modal:{type:"addProj",data:null}}),{clr:"#1B8B8E"})
+    ),
+    div({style:"display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap"},
+      el("input",{style:INP+"max-width:220px;font-size:13px;",value:S.search,onInput:e=>setState({search:e.target.value}),placeholder:"🔍 بحث..."}),
+      mkSel(INP+"width:auto;font-size:12px;",e=>setState({filterType:e.target.value}),opt("all","جميع الأنواع",S.filterType==="all"),...PTYPES.map(t=>opt(t.v,t.icon+" "+t.ar,S.filterType===t.v)))
+    ),
+    filtered.length===0?div({style:"background:#fff;border-radius:14px;padding:56px;text-align:center;color:#94a3b8"},div({style:"font-size:52px;margin-bottom:12px"},"🏗"),div({style:"font-size:16px;font-weight:700;color:#64748b"},"لا توجد مشاريع")):
+    div({style:"display:flex;flex-direction:column;gap:12px"},
+      ...filtered.map(pp=>{
+        const ps=stages.filter(s=>s.projectId===pp.id);const avgP=ps.length?Math.round(ps.reduce((a,s)=>a+(s.completionPct||0),0)/ps.length):0;const allT=ps.flatMap(s=>s.tasks||[]);const al=getAlerts(pp,ps);const pt=gpt(pp.type);
+        return div({style:`background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:16px 20px;cursor:pointer;border-right:4px solid ${pt.c}`,onClick:()=>setState({selProj:pp,projTab:"overview"})},
+          div({style:"display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px"},
+            div({style:"flex:1;min-width:0"},
+              div({style:"display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap"},span({style:"font-size:18px"},pt.icon),span({style:"font-size:17px;font-weight:900;color:#0F2044"},pp.name||"بدون اسم"),span({style:`font-size:11px;color:${pt.c};background:${pt.c}18;padding:1px 8px;border-radius:10px;font-weight:700`},pt.ar),al.length>0?span({style:"font-size:11px;color:#dc2626;background:#fee2e2;padding:1px 8px;border-radius:10px;font-weight:700"},"⚠️ "+al.length):null),
+              div({style:"font-size:12px;color:#64748b"},"📍 "+(pp.location||"-")+" · 🏗 "+(pp.contractor||"-")+" · ⏱ "+(pp.durationMonths||"-")+" شهر"),
+              div({style:"display:flex;gap:12px;margin-top:6px;font-size:11px;color:#94a3b8"},span("📊 "+ps.length+" مرحلة"),span("📌 "+allT.length+" مهمة"),span("🎯 "+((pp.kpis||[]).length)+" KPI"))
+            ),
+            div({style:"text-align:center;background:#f8fafc;border-radius:10px;padding:10px 16px;flex-shrink:0"},div({style:"font-size:10px;color:#64748b"},"الميزانية"),div({style:"font-size:17px;font-weight:800;color:#0F2044"},fmt(pp.budget)),div({style:`font-size:10px;color:${pct(pp.spent,pp.budget)>90?"#dc2626":"#94a3b8"}`},"ر.ع · صُرف: "+pct(pp.spent,pp.budget)+"%"))
+          ),
+          div({style:"margin-top:12px"},BarEl(avgP)),
+          div({style:"display:flex;justify-content:space-between;align-items:center;margin-top:10px"},
+            div({style:"font-size:11px;color:#94a3b8"},"اضغط لفتح لوحة التحكم"),
+            div({style:"display:flex;gap:6px"},Btn("✏️",e=>{e.stopPropagation();setState({modal:{type:"editProj",data:pp}});},{clr:"#f1f5f9",tc:"#374151",sm:true}),Btn("🗑",e=>{e.stopPropagation();deleteProject(pp.id);},{clr:"#fee2e2",tc:"#b91c1c",sm:true}))
+          )
+        );
+      })
+    )
+  );
+}
+
+/* ═══ USERS VIEW ═══ */
+function buildUsersView(){
+  const{users,projects}=S;
+  const wrap=div({className:"fi"});
+  wrap.appendChild(div({style:"display:flex;justify-content:space-between;align-items:center;margin-bottom:20px"},
+    div(null,h2({style:"color:#0F2044;margin:0;font-size:22px;font-weight:900"},"إدارة المستخدمين"),div({style:"font-size:12px;color:#64748b;margin-top:2px"},users.length+" مستخدم مسجل")),
+    Btn("+ مستخدم جديد",()=>setState({modal:{type:"addUser",data:null}}),{clr:"#1B8B8E"})
+  ));
+  if(users.length===0){
+    wrap.appendChild(div({style:"background:#fff;border-radius:14px;padding:56px;text-align:center;color:#94a3b8"},div({style:"font-size:52px;margin-bottom:12px"},"👥"),div({style:"font-size:16px;font-weight:700;color:#64748b"},"لا يوجد مستخدمون بعد")));
+    return wrap;
+  }
+  const grid=div({style:"display:flex;flex-direction:column;gap:10px"});
+  users.forEach(u=>{
+    const rd=ROLES[u.role]||{ar:u.role,c:"#666"};
+    const aP=projects.filter(pp=>(u.projectIds||[]).includes(pp.id));
+    const card=div({style:`background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:14px 18px;border-right:4px solid ${rd.c}`});
+    const cardRow=div({style:"display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px"});
+
+    // Left: user info
+    const info=div({style:"flex:1;min-width:0"});
+    info.appendChild(div({style:"display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap"},
+      span({style:"font-size:16px;font-weight:800;color:#0F2044"},u.name),
+      span({style:`font-size:11px;color:${rd.c};background:${rd.c}18;padding:1px 8px;border-radius:10px;font-weight:700`},rd.ar)
+    ));
+    info.appendChild(div({style:"display:flex;gap:16px;font-size:12px;color:#64748b;margin-bottom:6px"},
+      span("🪪 "+u.empId),
+      u.phone?span("📞 "+u.phone):null
+    ));
+    // Projects badges
+    const projBadges=div({style:"display:flex;flex-wrap:wrap;gap:4px"});
+    if(aP.length===0)projBadges.appendChild(span({style:"font-size:11px;color:#94a3b8;font-style:italic"},"لا توجد مشاريع مخصصة"));
+    aP.forEach(pp=>{const pt=gpt(pp.type);projBadges.appendChild(span({style:"background:#dbeafe;color:#1d4ed8;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600"},pt.icon+" "+pp.name));});
+    info.appendChild(projBadges);
+
+    // Permissions summary
+    const perms=u.permissions||{};
+    const permLabels=[];
+    if(perms.canAddProjects)permLabels.push("إضافة مشاريع");
+    if(perms.canAddStages)permLabels.push("إضافة مراحل");
+    if(perms.canDeleteProjects)permLabels.push("حذف مشاريع");
+    if(perms.canDeleteStages)permLabels.push("حذف مراحل");
+    if(permLabels.length>0)info.appendChild(div({style:"margin-top:5px;font-size:10px;color:#7c3aed"},"🔑 "+permLabels.join(" · ")));
+
+    cardRow.appendChild(info);
+
+    // Right: actions
+    const actions=div({style:"display:flex;flex-direction:column;gap:6px;flex-shrink:0"});
+    actions.appendChild(Btn("✏️ تعديل",()=>setState({modal:{type:"editUser",data:u}}),{clr:"#0284c7",tc:"#fff",sm:true,style:"width:100%"}));
+    actions.appendChild(Btn("🗑 حذف",()=>deleteUser(u.id),{clr:"#fee2e2",tc:"#b91c1c",sm:true,style:"width:100%"}));
+    cardRow.appendChild(actions);
+    card.appendChild(cardRow);
+    grid.appendChild(card);
+  });
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+/* ═══ ACTIVITY LOG ═══ */
+function buildLogs(){
+  const{logs}=S;
+  const actionLabels={"project_save":"💾 حفظ مشروع","stage_save":"📋 حفظ مرحلة","stage_update":"✏️ تحديث مرحلة"};
+  return div({className:"fi"},
+    div({style:"margin-bottom:18px"},h2({style:"color:#0F2044;font-size:22px;font-weight:900;margin-bottom:4px"},"سجل الأحداث / Activity Log"),div({style:"font-size:12px;color:#64748b"},"آخر "+logs.length+" حدث مسجل")),
+    logs.length===0?CardEl(div({style:"text-align:center;padding:40px;color:#94a3b8"},div({style:"font-size:40px;margin-bottom:10px"},"📋"),"لا توجد أحداث مسجلة بعد")):
+    CardEl(div({style:"overflow-x:auto"},tbl({style:"width:100%;border-collapse:collapse;font-size:13px"},
+      thead(null,tr({style:"background:#f8fafc;border-bottom:2px solid #e2e8f0"},...["الوقت","المستخدم","الإجراء","التفاصيل"].map(hd=>th({style:"padding:9px 12px;text-align:right;font-size:11px;color:#374151;font-weight:700;white-space:nowrap"},hd)))),
+      tbody(null,...logs.map((l,i)=>tr({style:"border-bottom:1px solid #f1f5f9"},
+        td({style:"padding:9px 12px;color:#94a3b8;font-size:11px;white-space:nowrap"},l.ts?new Date(l.ts).toLocaleString("ar-SA"):"-"),
+        td({style:"padding:9px 12px"},div({style:"font-size:13px;font-weight:700;color:#0F2044"},l.user||"-"),div({style:"font-size:10px;color:#94a3b8"},ROLES[l.role]?.ar||l.role||"")),
+        td({style:"padding:9px 12px;white-space:nowrap"},actionLabels[l.action]||l.action||"-"),
+        td({style:"padding:9px 12px;color:#374151;font-size:12px"},l.detail||"-")
+      )))
+    )))
+  );
+}
+
+/* ═══ REPORTS ═══ */
+function buildReports(){
+  const{projects,stages}=S;
+  const fromD=S.filterDateFrom;const toD=S.filterDateTo;
+  const filtered=projects.filter(pp=>{
+    if(fromD&&pp.startDate&&pp.startDate<fromD)return false;
+    if(toD&&pp.startDate&&pp.startDate>toD)return false;
+    return true;
+  });
+  const totB=filtered.reduce((a,p)=>a+Number(p.budget||0),0);
+  const totS=filtered.reduce((a,p)=>a+Number(p.spent||0),0);
+  const allProjStages=id=>stages.filter(s=>s.projectId===id);
+  const avgC=pp=>{const ps=allProjStages(pp.id);return ps.length?Math.round(ps.reduce((a,s)=>a+(s.completionPct||0),0)/ps.length):0;};
+  return div({className:"fi"},
+    div({style:"margin-bottom:18px"},h2({style:"color:#0F2044;font-size:22px;font-weight:900;margin-bottom:4px"},"التقارير / Reports"),div({style:"font-size:12px;color:#64748b"},"استخراج تقارير المشاريع حسب الفترة الزمنية")),
+    CardEl(div(null,div({style:"display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px"},
+      div({style:"flex:1;min-width:140px"},lbl({style:"display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:4px"},"من تاريخ البدء"),inp({type:"date",style:INP,value:fromD,onInput:e=>setState({filterDateFrom:e.target.value})})),
+      div({style:"flex:1;min-width:140px"},lbl({style:"display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:4px"},"إلى تاريخ البدء"),inp({type:"date",style:INP,value:toD,onInput:e=>setState({filterDateTo:e.target.value})})),
+      Btn("🖨 طباعة التقرير",()=>window.print(),{clr:"#0F2044"}),
+      Btn("مسح الفلتر",()=>setState({filterDateFrom:"",filterDateTo:""}),{clr:"#f1f5f9",tc:"#374151"})
+    ),
+    div({style:"display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px"},
+      ...[["المشاريع المعروضة",filtered.length,"🏗","#0F2044"],["إجمالي الميزانية",fmt(totB)+" ر.ع","💰","#0284c7"],["إجمالي المصروف",fmt(totS)+" ر.ع","📊","#16a34a"],["نسبة الصرف الكلية",pct(totS,totB)+"%","📈",pct(totS,totB)>90?"#dc2626":"#1B8B8E"]].map(([l,v,icon,c])=>div({style:`background:#f8fafc;border-radius:12px;padding:14px 16px;flex:1;min-width:100px;text-align:center;border-top:3px solid ${c}`},div({style:"font-size:20px;margin-bottom:4px"},icon),div({style:"font-size:10px;color:#64748b"},l),div({style:`font-size:18px;font-weight:900;color:${c}`},v)))
+    ))),
+    filtered.length===0?CardEl(div({style:"text-align:center;padding:40px;color:#94a3b8"},"لا توجد مشاريع في هذه الفترة")):
+    CardEl(div(null,
+      div({style:"display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"},div({style:"font-weight:800;color:#0F2044;font-size:14px"},"تفاصيل المشاريع ("+(fromD||"كل")+' — '+(toD||"التاريخ")+")")),
+      div({style:"overflow-x:auto"},tbl({style:"width:100%;border-collapse:collapse;font-size:13px"},
+        thead(null,tr({style:"background:#0F2044;color:#fff"},...["#","المشروع","الموقع","النوع","تاريخ البدء","تاريخ الإنجاز","الميزانية","الصرف","الإنجاز","الحالة"].map(hd=>th({style:"padding:9px 10px;text-align:right;font-size:11px;font-weight:700;white-space:nowrap"},hd)))),
+        tbody(null,...filtered.map((pp,i)=>{const ps=allProjStages(pp.id);const aP=avgC(pp);const pt=gpt(pp.type);const comp=ps.every(s=>s.status==="completed")&&ps.length>0;const del=ps.some(s=>s.status==="delayed");
+          return tr({style:"border-bottom:1px solid #f1f5f9"},
+            td({style:"padding:8px 10px;color:#94a3b8;font-size:11px"},i+1),
+            td({style:"padding:8px 10px;font-weight:700;color:#0F2044"},pp.name||"-"),
+            td({style:"padding:8px 10px;color:#64748b"},pp.location||"-"),
+            td({style:"padding:8px 10px"},span({style:`font-size:11px;color:${pt.c};background:${pt.c}18;padding:1px 8px;border-radius:10px;font-weight:700`},pt.icon+" "+pt.ar)),
+            td({style:"padding:8px 10px;color:#64748b"},pp.startDate||"-"),
+            td({style:"padding:8px 10px;color:#64748b"},pp.plannedEnd||"-"),
+            td({style:"padding:8px 10px;font-weight:600"},fmt(pp.budget)+" ر.ع"),
+            td({style:`padding:8px 10px;font-weight:700;color:${pct(pp.spent,pp.budget)>90?"#dc2626":"#16a34a"}`},pct(pp.spent,pp.budget)+"%"),
+            td({style:"padding:8px 10px;min-width:100px"},div({style:"font-size:11px;font-weight:700;color:#0284c7;margin-bottom:2px"},aP+"%"),BarEl(aP,null,5)),
+            td({style:"padding:8px 10px"},span({style:`background:${comp?"#dcfce7":del?"#fee2e2":"#dbeafe"};color:${comp?"#15803d":del?"#b91c1c":"#1d4ed8"};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700`},comp?"مكتمل":del?"متأخر":"جارٍ"))
+          );}))
+      ))
+    ))
+  );
+}
+
+/* ═══ SETTINGS ═══ */
+function buildSettings(){
+  const ac=S.adminCreds;
+  let newUser=ac.username||"Admin";
+  let newPass=ac.password||"MOH2026";
+  const wrap=div({className:"fi"});
+  wrap.appendChild(div({style:"margin-bottom:20px"},h2({style:"color:#0F2044;font-size:22px;font-weight:900;margin-bottom:4px"},"الإعدادات / Settings"),div({style:"font-size:12px;color:#64748b"},"إعدادات حساب المشرف العام")));
+
+  // Admin creds card
+  const card=CardEl(div(null,
+    div({style:"font-size:14px;font-weight:800;color:#0F2044;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #e2e8f0"},"🔐 بيانات دخول المشرف العام"),
+    FldEl("اسم المستخدم (Admin Username)",inp({style:INP,value:newUser,onInput:e=>newUser=e.target.value.trim()})),
+    FldEl("كلمة المرور الجديدة",div({style:"display:flex;gap:8px"},
+      inp({id:"adminPwInp",style:INP+"flex:1;",type:"text",value:newPass,onInput:e=>newPass=e.target.value}),
+      Btn("🎲 توليد",()=>{newPass=Math.random().toString(36).slice(2,10).toUpperCase();document.getElementById("adminPwInp").value=newPass;},{clr:"#0284c7",sm:true})
+    )),
+    div({style:"padding:12px;background:#fffbeb;border-radius:8px;border:1px solid #fcd34d;margin-bottom:14px"},
+      div({style:"font-size:12px;color:#92400e"},"⚠️ احتفظ بكلمة المرور الجديدة قبل الحفظ. لن تتمكن من استرجاعها إذا نسيتها.")
+    ),
+    Btn("💾 حفظ الإعدادات",()=>{
+      if(!newUser||!newPass){alert("أدخل اسم المستخدم وكلمة المرور");return;}
+      if(confirm("هل تريد تحديث بيانات المشرف؟\nاسم المستخدم: "+newUser+"\nكلمة المرور: "+newPass)){
+        saveAdminCreds({username:newUser,password:newPass});
+      }
+    },{clr:"#0F2044",style:"margin-top:4px"})
+  ));
+  wrap.appendChild(card);
+  return wrap;
+}
+
+/* ═══ FOCAL VIEW ═══ */
 function buildFocalView(){
-  const{user,projects,stages}=STATE;
-  const tab=STATE.focalTab||"stages";
+  const{user,projects,stages}=S;const tab=S.focalTab||"stages";
   const rd=ROLES[user.role]||{ar:user.role,c:"#0284c7"};
   const myP=projects.filter(pp=>(user.projectIds||[]).includes(pp.id));
   const myStages=stages.filter(s=>(user.projectIds||[]).includes(s.projectId)&&(user.role==="pm"||s.responsibleRole===user.role));
   const myTasks=myStages.flatMap(s=>(s.tasks||[]).filter(t=>t.assignedRole===user.role).map(t=>({...t,stageName:s.name,stageId:s.id,projName:(projects.find(pp=>pp.id===s.projectId)||{name:""}).name})));
   const odTasks=myTasks.filter(t=>overdue(t.dueDate)&&t.status!=="done").length;
-
   let tabContent;
   if(tab==="stages"){
     tabContent=myP.length===0?div({style:"background:#fff;border-radius:14px;padding:48px;text-align:center;color:#94a3b8"},div({style:"font-size:48px;margin-bottom:12px"},"📋"),"لا توجد مهام مخصصة"):
-    div(null,...myP.map(pp=>{
-      const ps=myStages.filter(s=>s.projectId===pp.id);if(ps.length===0)return null;
-      const pt=gpt(pp.type);
+    div(null,...myP.map(pp=>{const ps=myStages.filter(s=>s.projectId===pp.id);if(ps.length===0)return null;const pt=gpt(pp.type);
       return div({style:"background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.07);padding:16px 20px;margin-bottom:12px"},
         div({style:"display:flex;align-items:center;gap:8px;margin-bottom:12px"},span({style:"font-size:20px"},pt.icon),div(null,div({style:"font-size:16px;font-weight:900;color:#0F2044"},pp.name),div({style:"font-size:11px;color:#64748b"},"📍 "+pp.location))),
-        ...ps.map(s=>{
-          const st2=gst(s.status);const myT=(s.tasks||[]).filter(t=>t.assignedRole===user.role);const doneT=myT.filter(t=>t.status==="done").length;
-          const card2=div({style:`background:#f8fafc;border-radius:10px;padding:11px 13px;margin-bottom:7px;border-right:3px solid ${st2.c};cursor:pointer;transition:background .15s`,
-            onClick:()=>setState({modal:{type:"updateStage",data:{stage:s,project:pp}}})
-          },
+        ...ps.map(s=>{const st2=gst(s.status);const myT=(s.tasks||[]).filter(t=>t.assignedRole===user.role);const doneT=myT.filter(t=>t.status==="done").length;
+          const c2=div({style:`background:#f8fafc;border-radius:10px;padding:11px 13px;margin-bottom:7px;border-right:3px solid ${st2.c};cursor:pointer`,onClick:()=>setState({modal:{type:"updateStage",data:{stage:s,project:pp}}})},
             div({style:"display:flex;justify-content:space-between;align-items:flex-start;gap:10px"},
-              div({style:"flex:1"},
-                div({style:"font-size:13px;font-weight:800;color:#1e293b;margin-bottom:3px"},s.name),
-                div({style:"font-size:11px;color:#64748b"},(s.startDate||"")+(s.endDate?" → "+s.endDate:"")),
-                myT.length>0?div({style:"font-size:11px;color:#7c3aed;margin-top:3px"},"📌 "+doneT+"/"+myT.length+" مهمة منجزة"):null,
-                s.updatedAt?div({style:"font-size:10px;color:#94a3b8;margin-top:2px"},"آخر تحديث: "+new Date(s.updatedAt).toLocaleDateString("ar-OM")):null
-              ),
+              div({style:"flex:1"},div({style:"font-size:13px;font-weight:800;color:#1e293b;margin-bottom:3px"},s.name),div({style:"font-size:11px;color:#64748b"},(s.startDate||"")+(s.endDate?" → "+s.endDate:"")),myT.length>0?div({style:"font-size:11px;color:#7c3aed;margin-top:3px"},"📌 "+doneT+"/"+myT.length+" مهمة منجزة"):null,s.updatedAt?div({style:"font-size:10px;color:#94a3b8;margin-top:2px"},"آخر تحديث: "+fmtDate(s.updatedAt)):null),
               div({style:"text-align:center"},Badge(s.status),div({style:"font-size:10px;color:#0284c7;margin-top:5px;font-weight:600"},"اضغط للتحديث ✏️"))
-            ),
-            div({style:"margin-top:8px"},BarEl(s.completionPct||0,rd.c))
+            ),div({style:"margin-top:8px"},BarEl(s.completionPct||0,rd.c))
           );
-          card2.addEventListener("mouseenter",()=>card2.style.background="#eef3ff");
-          card2.addEventListener("mouseleave",()=>card2.style.background="#f8fafc");
-          return card2;
+          c2.addEventListener("mouseenter",()=>c2.style.background="#eef3ff");c2.addEventListener("mouseleave",()=>c2.style.background="#f8fafc");
+          return c2;
         })
       );
     }));
   } else {
     tabContent=myTasks.length===0?CardEl(div({style:"text-align:center;padding:24px 0;color:#94a3b8"},div({style:"font-size:40px;margin-bottom:8px"},"📌"),"لا توجد مهام فرعية مخصصة")):
-    div(null,...myTasks.map(t=>{
-      const ts=gtst(t.status);const od=overdue(t.dueDate)&&t.status!=="done";
-      const stage=myStages.find(s=>s.id===t.stageId);
-      const statSel=sel({style:`${INP}width:auto;font-size:12px;padding:5px 10px;background:${ts.bg};color:${ts.c};font-weight:700;border:none;`},...TSTATS.map(s=>opt(s.v,s.ar,t.status===s.v)));
-      if(stage){statSel.addEventListener("change",e=>{const us={...stage,tasks:(stage.tasks||[]).map(x=>x.id===t.id?{...x,status:e.target.value,updatedAt:new Date().toISOString()}:x)};updateStage(us,null,null);});}
-      return div({style:`background:#fff;border-radius:12px;padding:12px 16px;margin-bottom:8px;box-shadow:0 2px 8px rgba(0,0,0,.06);border-right:3px solid ${ts.c}`},
-        div({style:"display:flex;justify-content:space-between;align-items:flex-start;gap:10px"},
-          div({style:"flex:1"},
-            div({style:"font-size:13px;font-weight:800;color:#1e293b;margin-bottom:2px"},(t.priority==="high"?"🔴 ":t.priority==="low"?"🟢 ":"🟡 ")+t.title),
-            div({style:"font-size:11px;color:#64748b"},t.projName+" · "+t.stageName),
-            t.dueDate?div({style:`font-size:11px;color:${od?"#dc2626":"#64748b"};margin-top:2px`},"📅 "+t.dueDate+(od?" ⚠️":"")):null
-          ),statSel
-        )
-      );
+    div(null,...myTasks.map(t=>{const ts=gtst(t.status);const od=overdue(t.dueDate)&&t.status!=="done";const stage=myStages.find(s=>s.id===t.stageId);
+      const ss=mkSel(`${INP}width:auto;font-size:12px;padding:5px 10px;background:${ts.bg};color:${ts.c};font-weight:700;border:none;`,e=>{if(stage){const us={...stage,tasks:(stage.tasks||[]).map(x=>x.id===t.id?{...x,status:e.target.value,updatedAt:new Date().toISOString()}:x)};updateStage(us,null,null);}},opt("pending","معلقة",t.status==="pending"||!t.status),opt("in_progress","جارية",t.status==="in_progress"),opt("done","منجزة",t.status==="done"));
+      return div({style:`background:#fff;border-radius:12px;padding:12px 16px;margin-bottom:8px;box-shadow:0 2px 8px rgba(0,0,0,.06);border-right:3px solid ${ts.c}`},div({style:"display:flex;justify-content:space-between;align-items:flex-start;gap:10px"},div({style:"flex:1"},div({style:"font-size:13px;font-weight:800;color:#1e293b;margin-bottom:2px"},(t.priority==="high"?"🔴 ":t.priority==="low"?"🟢 ":"🟡 ")+t.title),div({style:"font-size:11px;color:#64748b"},t.projName+" · "+t.stageName),t.dueDate?div({style:`font-size:11px;color:${od?"#dc2626":"#64748b"};margin-top:2px`},"📅 "+t.dueDate+(od?" ⚠️":"")):null),ss));
     }));
   }
-
   return div({className:"fi"},
     div({style:`background:${rd.c}18;border:1px solid ${rd.c}25;border-radius:14px;padding:18px 22px;margin-bottom:18px;border-right:4px solid ${rd.c}`},
-      div({style:"font-size:26px;margin-bottom:6px"},"👋"),
-      h2({style:"margin:0 0 2px;color:#0F2044;font-size:20px;font-weight:900"},"مرحباً، "+user.name),
+      h2({style:"margin:0 0 2px;color:#0F2044;font-size:20px;font-weight:900"},"مرحباً، "+user.name+" 👋"),
       div({style:`font-size:13px;color:${rd.c};font-weight:700;margin-bottom:12px`},rd.ar),
       div({style:"display:flex;gap:20px;flex-wrap:wrap"},
         ...[["مشاريعي",myP.length,"#0F2044"],["مراحل معلقة",myStages.filter(s=>s.status!=="completed").length,"#f59e0b"],["مهامي",myTasks.length,"#7c3aed"],["متأخرة",odTasks,"#dc2626"]].map(([l,v,c])=>div(null,span({style:`font-size:28px;font-weight:900;color:${c}`},v),div({style:"font-size:11px;color:#64748b"},l)))
@@ -1036,64 +1001,48 @@ function buildFocalView(){
       TabBtn("المراحل ("+myStages.length+")",tab==="stages",()=>setState({focalTab:"stages"})),
       TabBtn("المهام الفرعية ("+myTasks.length+")",tab==="tasks",()=>setState({focalTab:"tasks"}))
     ),
-    tabContent
+    tabContent,
+    S.modal&&S.modal.type==="updateStage"?null:null
   );
 }
 
-/* ══════════════════════════════════════════
-   MAIN RENDER
-══════════════════════════════════════════ */
+/* ═══ MAIN RENDER ═══ */
 function render(){
   const root=document.getElementById("root");
+  try{renderInner(root);}catch(err){root.innerHTML="";root.appendChild(div({style:"min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;color:#dc2626;font-family:Cairo,sans-serif;padding:40px;text-align:center"},div({style:"font-size:48px"},"⚠️"),div({style:"font-size:18px;font-weight:700"},"حدث خطأ في عرض الصفحة"),div({style:"font-size:13px;color:#64748b;max-width:500px"},err.message),Btn("إعادة المحاولة",()=>setState({}),{clr:"#0F2044",style:"margin-top:16px"})));console.error(err);}
+}
+function renderInner(root){
   root.innerHTML="";
-
-  // show modal if any
   let modalEl=null;
-  if(STATE.modal){
-    const{type,data}=STATE.modal;
+  if(S.modal){const{type,data}=S.modal;
     if(type==="addProj"||type==="editProj")modalEl=buildProjModal(type==="editProj"?data:null);
     else if(type==="addStage")modalEl=buildStageModal(null,data.projectId);
     else if(type==="editStage")modalEl=buildStageModal(data,data.projectId);
-    else if(type==="addUser")modalEl=buildUserModal();
-    else if(type==="updateStage")modalEl=buildUpdateModal(data.stage,data.project,STATE.user);
+    else if(type==="addUser")modalEl=buildUserModal(null);
+    else if(type==="editUser")modalEl=buildUserModal(data);
+    else if(type==="updateStage")modalEl=buildUpdateModal(data.stage,data.project,S.user);
   }
-
-  if(!STATE.user){
-    root.appendChild(buildLogin());
-    if(modalEl)root.appendChild(modalEl);
-    return;
-  }
-
-  if(STATE.loading){
-    root.appendChild(div({style:"min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:Cairo,sans-serif;flex-direction:column;gap:16px;color:#0F2044"},
-      div({className:"spinning",style:"font-size:48px"},"⟳"),
-      div({style:"font-size:18px;font-weight:700"},"جاري تحميل البيانات من Firebase..."),
-      div({style:"font-size:13px;color:#64748b"},"Loading data...")
-    ));
-    return;
-  }
-
+  if(!S.user){root.appendChild(buildLogin());if(modalEl)root.appendChild(modalEl);return;}
+  if(S.loading){root.appendChild(div({style:"min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;color:#0F2044"},div({className:"spinning",style:"font-size:48px"},"⟳"),div({style:"font-size:18px;font-weight:700"},"جاري تحميل بيانات "+APP_NAME_AR+"..."),div({style:"font-size:13px;color:#64748b"},ORG_AR)));return;}
   const wrapper=div({style:"display:flex;min-height:100vh;background:#eef2f7;font-family:Cairo,sans-serif"});
   wrapper.appendChild(buildSidebar());
-  const main=div({style:"flex:1;padding:24px 28px;overflow-y:auto;max-width:calc(100% - 230px);min-height:100vh"});
-
-  if(STATE.user.role==="admin"){
-    if(STATE.view==="projects"&&STATE.selProj){
-      const lp=STATE.projects.find(pp=>pp.id===STATE.selProj.id)||STATE.selProj;
-      main.appendChild(buildProjDash(lp));
-    } else if(STATE.view==="dashboard")main.appendChild(buildGlobalDash());
-    else if(STATE.view==="projects")main.appendChild(buildProjList());
-    else if(STATE.view==="users")main.appendChild(buildUsersView());
-  } else {
-    main.appendChild(buildFocalView());
-  }
-
-  wrapper.appendChild(main);
-  root.appendChild(wrapper);
+  const main=div({className:"print-area",style:"flex:1;padding:24px 28px;overflow-y:auto;max-width:calc(100% - 230px);min-height:100vh"});
+  const isAdmin=S.user.role==="admin";const isPM=S.user.role==="pm";
+  if(isAdmin){
+    if(S.view==="projects"&&S.selProj){const lp=S.projects.find(pp=>pp.id===S.selProj.id)||S.selProj;main.appendChild(buildProjDash(lp));}
+    else if(S.view==="dashboard")main.appendChild(buildGlobalDash());
+    else if(S.view==="projects")main.appendChild(buildProjList());
+    else if(S.view==="users")main.appendChild(buildUsersView());
+    else if(S.view==="logs")main.appendChild(buildLogs());
+    else if(S.view==="reports")main.appendChild(buildReports());
+    else if(S.view==="settings")main.appendChild(buildSettings());
+  } else if(isPM){
+    if(S.view==="pm_dash")main.appendChild(buildPMDash());
+    else main.appendChild(buildFocalView());
+  } else{main.appendChild(buildFocalView());}
+  wrapper.appendChild(main);root.appendChild(wrapper);
   if(modalEl)root.appendChild(modalEl);
 }
-
-// Boot
 render();
 </script>
 </body>
